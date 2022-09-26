@@ -285,6 +285,62 @@ sd_readsector:
   jmp .failloop
 
 
+sd_writesector:
+  ; Write a sector to the SD card.  A sector is 512 bytes.
+  ;
+  ; Parameters:
+  ;    zp_sd_currentsector   32-bit sector number
+  ;    zp_sd_address     address of buffer to take data from
+  
+  lda #SD_MISO
+  sta PORTA
+
+  ; Command 24, arg is sector number, crc not checked
+  lda #$58                    ; CMD24 - WRITE_BLOCK
+  jsr sd_writebyte
+  lda zp_sd_currentsector+3   ; sector 24:31
+  jsr sd_writebyte
+  lda zp_sd_currentsector+2   ; sector 16:23
+  jsr sd_writebyte
+  lda zp_sd_currentsector+1   ; sector 8:15
+  jsr sd_writebyte
+  lda zp_sd_currentsector     ; sector 0:7
+  jsr sd_writebyte
+  lda #$01                    ; crc (not checked)
+  jsr sd_writebyte
+
+  jsr sd_waitresult
+  cmp #$00
+  bne .fail
+
+  ; wait for data
+  ;jsr sd_waitresult
+  ;cmp #$fe
+  ;bne .fail
+  ; BUG I don't think it need to wait for any more data, but I gotta check the datasheet more... (hard to read)
+
+  ; Need to write 512 bytes - two pages of 256 bytes each
+  jsr .writepage
+  inc zp_sd_address+1
+  jsr .writepage
+  dec zp_sd_address+1
+
+  ; End command
+  lda #SD_CS | SD_MOSI ; set cs and mosi high (disconnected)
+  sta PORTA
+
+  sec
+  rts
+
+.fail:
+  ldx #<failedmsg
+  ldy #>failedmsg  ;Failed!
+  jsr w_acia_full
+.failloop:
+  clc
+  rts
+
+
 .readpage
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
@@ -293,6 +349,16 @@ sd_readsector:
   sta (zp_sd_address),y
   iny
   bne .readloop
+  rts
+
+.writepage:
+  ; Write 256 bytes fom zp_sd_address
+  ldy #0
+.writeloop:
+  lda (zp_sd_address),y
+  jsr sd_writebyte
+  iny
+  bne .writeloop
   rts
 
 
