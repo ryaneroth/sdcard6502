@@ -254,12 +254,12 @@ sd_readsector:
 
   jsr sd_waitresult
   cmp #$00
-  bne .fail
+  bne sd_fail
 
   ; wait for data
   jsr sd_waitresult
   cmp #$fe
-  bne .fail
+  bne sd_fail
 
   ; Need to read 512 bytes - two pages of 256 bytes each
   jsr .readpage
@@ -273,8 +273,17 @@ sd_readsector:
 
   rts
 
+.readpage
+  ; Read 256 bytes to the address at zp_sd_address
+  ldy #0
+.readloop
+  jsr sd_readbyte
+  sta (zp_sd_address),y
+  iny
+  bne .readloop
+  rts
 
-.fail
+sd_fail:
   lda #'s'
   jsr print_char
   lda #':'
@@ -292,7 +301,7 @@ sd_writesector:
   ;    zp_sd_currentsector   32-bit sector number
   ;    zp_sd_address     address of buffer to take data from
   
-  lda #SD_MISO
+  lda #SD_MOSI
   sta PORTA
 
   ; Command 24, arg is sector number, crc not checked
@@ -311,13 +320,11 @@ sd_writesector:
 
   jsr sd_waitresult
   cmp #$00
-  bne .fail
+  bne sd_fail
 
-  ; wait for data
-  ;jsr sd_waitresult
-  ;cmp #$fe
-  ;bne .fail
-  ; BUG I don't think it need to wait for any more data, but I gotta check the datasheet more... (hard to read)
+  ; Send start token
+  lda #$fe
+  jsr sd_writebyte
 
   ; Need to write 512 bytes - two pages of 256 bytes each
   jsr .writepage
@@ -325,30 +332,21 @@ sd_writesector:
   jsr .writepage
   dec zp_sd_address+1
 
+  ; wait for data response
+  jsr sd_waitresult
+  and #$1f
+  cmp #$05
+  bne sd_fail
+
+.waitidle
+  jsr sd_readbyte
+  cmp #$ff
+  bne .waitidle
+
   ; End command
   lda #SD_CS | SD_MOSI ; set cs and mosi high (disconnected)
   sta PORTA
 
-  sec
-  rts
-
-.fail:
-  ldx #<failedmsg
-  ldy #>failedmsg  ;Failed!
-  jsr w_acia_full
-.failloop:
-  clc
-  rts
-
-
-.readpage
-  ; Read 256 bytes to the address at zp_sd_address
-  ldy #0
-.readloop
-  jsr sd_readbyte
-  sta (zp_sd_address),y
-  iny
-  bne .readloop
   rts
 
 .writepage:
@@ -356,7 +354,9 @@ sd_writesector:
   ldy #0
 .writeloop:
   lda (zp_sd_address),y
+  phy
   jsr sd_writebyte
+  ply
   iny
   bne .writeloop
   rts
