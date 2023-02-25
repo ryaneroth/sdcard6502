@@ -3,6 +3,7 @@
 ; This module requires some RAM workspace to be defined elsewhere:
 ; 
 ; fat32_workspace    - a large page-aligned 512-byte workspace
+; buffer	     - another page-aligned 512-byte buffer
 ; zp_fat32_variables - 24 bytes of zero-page storage for variables etc
 
 fat32_readbuffer = fat32_workspace
