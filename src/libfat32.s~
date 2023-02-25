@@ -181,6 +181,12 @@ fat32_init:
   lda fat32_readbuffer+13
   sta fat32_sectorspercluster
 
+  ; Remember FSInfo sector
+  ;lda fat32_readbuffer+38
+  ;sta fat32_fsinfosector
+  ;lda fat32_readbuffer+39
+  ;sta fat32_fsinfosector+1
+
   ; Remember the root cluster
   lda fat32_readbuffer+44
   sta fat32_rootcluster
