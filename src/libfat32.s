@@ -82,10 +82,10 @@ fat32_init:
   cmp #.FSTYPE_FAT32
   beq .foundpart
 
-.fail:
+.fail
   jmp .error
 
-.foundpart:
+.foundpart
 
   ; Read the FAT32 BPB
   lda fat32_readbuffer+$1c6,x
@@ -152,7 +152,7 @@ fat32_init:
 
   ; Calculate the starting sector of the data area
   ldx fat32_readbuffer+16   ; number of FATs
-.skipfatsloop:
+.skipfatsloop
   clc
   lda fat32_datastart
   adc fat32_readbuffer+36 ; fatsize 0
@@ -199,7 +199,7 @@ fat32_init:
   clc
   rts
 
-.error:
+.error
   sec
   rts
 
@@ -294,7 +294,7 @@ fat32_seekcluster:
   
   ; Multiply by sectors-per-cluster which is a power of two between 1 and 128
   lda fat32_sectorspercluster
-.spcshiftloop:
+.spcshiftloop
   lsr
   bcs .spcshiftloopdone
   asl zp_sd_currentsector
@@ -302,7 +302,7 @@ fat32_seekcluster:
   rol zp_sd_currentsector+2
   rol zp_sd_currentsector+3
   jmp .spcshiftloop
-.spcshiftloopdone:
+.spcshiftloopdone
 
   ; Add the data region start sector
   clc
@@ -365,7 +365,7 @@ fat32_seekcluster:
 
   ; It's the end of the chain, set the top bits so that we can tell this later on
   sta fat32_nextcluster+3
-.notendofchain:
+.notendofchain
   rts
 
 
@@ -388,7 +388,7 @@ fat32_readnextsector:
   ; Prepare to read the next cluster
   jsr fat32_seekcluster
 
-.readsector:
+.readsector
   dec fat32_pendingsectors
 
   ; Set up target address  
@@ -408,7 +408,7 @@ fat32_readnextsector:
   inc zp_sd_currentsector+2
   bne .sectorincrementdone
   inc zp_sd_currentsector+3
-.sectorincrementdone:
+.sectorincrementdone
 
   ; Success - clear carry and return
   clc
@@ -422,7 +422,7 @@ fat32_readnextsector:
 fat32_writenextsector:
   ; Writes the next sector into the buffer at fat32_address.
   ; 
-  ; Also looks for new clusters and stores them in the FAT.
+  ; Also lo oks for new clusters and stores them in the FAT.
   ;
   ; On return, carry is set if its the end of the chain.
 
@@ -516,7 +516,7 @@ fat32_writenextsector:
   ; Update the FAT
   jsr fat32_sectorbounds
 
-.writesector:
+.writesector
   dec fat32_pendingsectors
 
   ; Set up target address
@@ -536,7 +536,7 @@ fat32_writenextsector:
   inc zp_sd_currentsector+2
   bne .nextsectorincrementdone
   inc zp_sd_currentsector+3
-.nextsectorincrementdone:
+.nextsectorincrementdone
 
   ; Success - clear carry and return
   clc
@@ -760,18 +760,18 @@ fat32_writedirent:
   jsr fat32_readnextsector
   bcc .gotdirrent
 
-.endofdirectorywrite:
+.endofdirectorywrite
   sec
   rts
 
-.gotdirrent:
+.gotdirrent
   ; Check first character
   clc
   ldy #0
   lda (zp_sd_address),y
   bne fat32_writedirent ; go again
   ; End of directory. Now make a new entry.
-.dloop:
+.dloop
   lda (fat32_filenamepointer),y	; copy filename
   sta (zp_sd_address),y
   iny
@@ -862,7 +862,7 @@ fat32_writedirent:
   clc
   rts
 
-.dfail:
+.dfail
   ; Card Full
   sec
   rts
@@ -934,11 +934,11 @@ fat32_readdirent:
   jsr fat32_readnextsector
   bcc .gotdata
 
-.endofdirectory:
+.endofdirectory
   sec
   rts
 
-.gotdata:
+.gotdata
   ; Check first character
   ldy #0
   lda (zp_sd_address),y
@@ -971,13 +971,13 @@ fat32_finddirent:
   sty fat32_filenamepointer+1
   
   ; Iterate until name is found or end of directory
-.direntloop:
+.direntloop
   jsr fat32_readdirent
   ldy #10
   bcc .comparenameloop
   rts ; with carry set
 
-.comparenameloop:
+.comparenameloop
   lda (zp_sd_address),y
   cmp (fat32_filenamepointer),y
   bne .direntloop ; no match
@@ -1133,7 +1133,7 @@ fat32_file_readbyte:
   jsr fat32_readnextsector
   bcs .rts                    ; this shouldn't happen
 
-.gotdata:
+.gotdata
   ldy #0
   lda (zp_sd_address),y
 
@@ -1174,7 +1174,7 @@ fat32_file_read:
   sta fat32_bytesremaining
 
   ; Read entire sectors to the user-supplied buffer
-.wholesectorreadloop:
+.wholesectorreadloop
   ; Read a sector to fat32_address
   jsr fat32_readnextsector
 
@@ -1221,7 +1221,7 @@ fat32_file_write:
   sta fat32_pendingsectors
 
   ; Write entire sectors from the user-supplied buffer
-.wholesectorwriteloop:
+.wholesectorwriteloop
   ; Write a sector from fat32_address
   jsr fat32_writenextsector
   bcs .fail	; this shouldn't happen
@@ -1238,5 +1238,5 @@ fat32_file_write:
   bne .wholesectorwriteloop
 
   ; Done!
-.fail:
+.fail
   rts
