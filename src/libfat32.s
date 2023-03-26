@@ -1193,14 +1193,14 @@ fat32_file_read:
   rts
 
 fat32_file_write:
-  ; Write a whole file from memory.  It's assumed the file has just been opened 
+  ; Write a whole file from memory.  It's assumed the dirent has just been created 
   ; and no data has been written yet.
-  ;
-  ; Also we write whole sectors, so data in the target region beyond the end of the 
-  ; file may get overwritten, up to the next 512-byte boundary.
-  ;
-  ; And we don't properly support 64k+ files, as it's unnecessary complication given
-  ; the 6502's small address space
+
+  ; We don't properly support 64k+ files, as it's unnecessary complication given
+  ; the 6502's small address space, so we'll just empty out the top two bytes.
+  lda #0
+  sta fat32_bytesremaining+2
+  sta fat32_bytesremaining+3
 
   ; Round the size up to the next whole sector
   lda fat32_bytesremaining

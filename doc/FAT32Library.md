@@ -75,6 +75,25 @@ iterate over the subdirectory.
 If the object is a file, the file access APIs can then be used to read its contents,
 and directory iteration APIs won't work any more.
 
+## fat32\_deletefile
+
+Removes the currently open dirent from the card, as well as clearing all the clusters
+it useed from the FAT.
+
+## fat32\_allocatecluster
+
+This finds a free cluster to start saving a file to.
+
+This needs to be run before `writedirent`
+
+## fat32\_writedirent
+
+Creates and writes a new directory entry in the open directory.
+
+`fat32\_filenamepointer` points to the filename to write.
+
+At the moment, folder creation is not supported, only files.
+
 ## fat32\_file\_read
 
 Reads an entire file into memory, after it has been opened via `opendirent` above.
@@ -83,6 +102,13 @@ Pass the target address at `fat32\_address`.
 
 The file size is rounded up to the next multiple of 512 bytes, so data in
 memory beyond the strict end of the file may also be overwritten.
+
+## fat32\_file\_write
+
+Writes an entire file from memory to the SD card.
+
+The memory location to start from is in `fat32\_address`, and the file size (in bytes)
+is in `fat32\_bytesremaining`.
 
 
 # Caveats
