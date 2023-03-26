@@ -59,7 +59,7 @@ include an explicit dot.
 Advances to the next entry in the directory, allowing for listing directories
 without knowing in advance what files they contain.
 
-On success the carry is clear and `zp\_sd\_address` points at the directory entry
+On success the carry is clear and `zp_sd_address` points at the directory entry
 in memory, in raw byte format used by FAT32.
 
 Otherwise, if there are no more entries in the directory, then the carry is set.
@@ -67,7 +67,7 @@ Otherwise, if there are no more entries in the directory, then the carry is set.
 ## fat32\_opendirent
 
 After `finddirent` or `readdirent`, this opens the active directory entry
-as referenced by `zp\_sd\_address`.
+as referenced by `zp_sd_address`.
 
 If the object is a directory, then subsequent calls to `finddirent` or `readdirent` will
 iterate over the subdirectory.
@@ -90,7 +90,9 @@ This needs to be run before `writedirent`
 
 Creates and writes a new directory entry in the open directory.
 
-`fat32\_filenamepointer` points to the filename to write.
+Make sure that you've allocated a cluster before running this!
+
+`fat32_filenamepointer` points to the filename to write.
 
 At the moment, folder creation is not supported, only files.
 
@@ -98,7 +100,7 @@ At the moment, folder creation is not supported, only files.
 
 Reads an entire file into memory, after it has been opened via `opendirent` above.
 
-Pass the target address at `fat32\_address`.
+Pass the target address at `fat32_address`.
 
 The file size is rounded up to the next multiple of 512 bytes, so data in
 memory beyond the strict end of the file may also be overwritten.
@@ -107,8 +109,8 @@ memory beyond the strict end of the file may also be overwritten.
 
 Writes an entire file from memory to the SD card.
 
-The memory location to start from is in `fat32\_address`, and the file size (in bytes)
-is in `fat32\_bytesremaining`.
+The memory location to start from is in `fat32_address`, and the file size (in bytes)
+is in `fat32_bytesremaining`.
 
 
 # Caveats
