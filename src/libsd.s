@@ -14,7 +14,7 @@ sd_init:
 
   lda #SD_CS | SD_MOSI
   ldx #160               ; toggle the clock 160 times, so 80 low-high transitions
-.preinitloop:
+.preinitloop
   eor #SD_SCK
   sta PORTA
   dex
@@ -122,7 +122,7 @@ sd_readbyte:
 
   ldx #$fe    ; Preloaded with seven ones and a zero, so we stop after eight bits
 
-.loop:
+.loop
 
   lda #SD_MOSI                ; enable card (CS low), set MOSI (resting state), SCK low
   sta PORTA
@@ -136,7 +136,7 @@ sd_readbyte:
   clc                         ; default to clearing the bottom bit
   beq .bitnotset              ; unless MISO was set
   sec                         ; in which case get ready to set the bottom bit
-.bitnotset:
+.bitnotset
 
   txa                         ; transfer partial result from X
   rol                         ; rotate carry bit into read result, and loop bit into carry
@@ -153,7 +153,7 @@ sd_writebyte:
 
   ldx #8                      ; send 8 bits
 
-.loop:
+.loop
   asl                         ; shift next bit into carry
   tay                         ; save remaining bits for later
 
@@ -161,7 +161,7 @@ sd_writebyte:
   bcc .sendbit                ; if carry clear, don't set MOSI for this bit
   ora #SD_MOSI
 
-.sendbit:
+.sendbit
   sta PORTA                   ; set MOSI (or not) first with SCK low
   eor #SD_SCK
   sta PORTA                   ; raise SCK keeping MOSI the same, to send the bit
@@ -349,10 +349,10 @@ sd_writesector:
 
   rts
 
-.writepage:
+.writepage
   ; Write 256 bytes fom zp_sd_address
   ldy #0
-.writeloop:
+.writeloop
   lda (zp_sd_address),y
   tya
   pha

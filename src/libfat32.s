@@ -858,7 +858,7 @@ fat32_writedirent:
   lda #0
   sta (zp_sd_address),y
   ;jsr fat32_writenextsector ; write all the data...
-  jsr .wr
+  jsr fat32_wrcurrent
   clc
   rts
 
