@@ -606,7 +606,7 @@ fat32_openroot:
 
 fat32_allocatecluster:
   ; Allocate a cluster to store a file at.
-  ; Must be done BEFORE running fat32_opendirent.
+  ; Must be done BEFORE running fat32_writedirent.
 
   ; Find a free cluster
   jsr fat32_findnextfreecluster
