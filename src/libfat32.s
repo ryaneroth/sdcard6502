@@ -468,7 +468,7 @@ fat32_writenextsector:
   sta (zp_sd_address),y
 
   ; Update the FAT
-  jsr fat32_sectorbounds
+  jsr fat32_updatefat
 
   ; End of chain - finish up the remaining sectors
   jmp .writesector
@@ -514,7 +514,7 @@ fat32_writenextsector:
   sta (zp_sd_address),y
 
   ; Update the FAT
-  jsr fat32_sectorbounds
+  jsr fat32_updatefat
 
 .writesector
   dec fat32_pendingsectors
@@ -542,7 +542,7 @@ fat32_writenextsector:
   clc
   rts
 
-fat32_sectorbounds:
+fat32_updatefat:
  ; Preserve the current sector
   lda zp_sd_currentsector
   pha 
@@ -1066,7 +1066,7 @@ fat32_deletefile:
   sta (zp_sd_address),y
 
   ; Write the FAT
-  jsr fat32_sectorbounds
+  jsr fat32_updatefat
 
   ; And go again for another pass.
   jmp .chainloop
@@ -1085,7 +1085,7 @@ fat32_deletefile:
   sta (zp_sd_address),y
 
   ; Write the FAT
-  jsr fat32_sectorbounds
+  jsr fat32_updatefat
 
   ; And we're done!
   clc
