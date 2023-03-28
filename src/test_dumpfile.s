@@ -8,10 +8,11 @@
 
 zp_sd_address = $40         ; 2 bytes
 zp_sd_currentsector = $42   ; 4 bytes
-zp_fat32_variables = $46    ; 24 bytes
+zp_fat32_variables = $46    ; 49 bytes
 
 fat32_workspace = $200      ; two pages
-buffer = $400               ; two pages
+
+buffer = $400
 
 subdirname:
   .asciiz "SUBFOLDR   "
