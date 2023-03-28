@@ -33,7 +33,7 @@ details.
 This initializes the library.  The SD library needs to be initialized first.
 
 On return, the carry is set if there was an error, and in that case you can read an
-error code from `fat32\_errorstage` that may help diagnosing what the problem was
+error code from `fat32_errorstage` that may help diagnosing what the problem was
 (probably some issue with the formatting of the SD card).
 
 ## fat32\_openroot
@@ -54,15 +54,13 @@ followed by 3 bytes of capitalized extension padded with spaces.  Note
 especially that it's not null-terminated, mustn't be lower case, and doesn't
 include an explicit dot.
 
-## fat32\_readdirent
+## fat32\_allocatefile
 
-Advances to the next entry in the directory, allowing for listing directories
-without knowing in advance what files they contain.
+This allocates all the clusters for a new file.
 
-On success the carry is clear and `zp_sd_address` points at the directory entry
-in memory, in raw byte format used by FAT32.
+The file size to allocate (in bytes) should in `fat32_bytesremaining` before running.
 
-Otherwise, if there are no more entries in the directory, then the carry is set.
+This needs to be run before opening a directory!
 
 ## fat32\_opendirent
 
@@ -80,11 +78,7 @@ and directory iteration APIs won't work any more.
 Removes the currently open dirent from the card, as well as clearing all the clusters
 it useed from the FAT.
 
-## fat32\_allocatecluster
-
-This finds a free cluster to start saving a file to.
-
-This needs to be run before `writedirent`
+If you are going to read/write a dirent after this, you will need to re-open the directory!
 
 ## fat32\_writedirent
 
@@ -95,6 +89,16 @@ Make sure that you've allocated a cluster before running this!
 `fat32_filenamepointer` points to the filename to write.
 
 At the moment, folder creation is not supported, only files.
+
+## fat32\_readdirent
+
+Advances to the next entry in the directory, allowing for listing directories
+without knowing in advance what files they contain.
+
+On success the carry is clear and `zp_sd_address` points at the directory entry
+in memory, in raw byte format used by FAT32.
+
+Otherwise, if there are no more entries in the directory, then the carry is set.
 
 ## fat32\_file\_read
 
@@ -109,9 +113,9 @@ memory beyond the strict end of the file may also be overwritten.
 
 Writes an entire file from memory to the SD card.
 
-The memory location to start from is in `fat32_address`, and the file size (in bytes)
-is in `fat32_bytesremaining`.
+The memory location to start from is in `fat32_address`
 
+Run this after running `writedirent`!
 
 # Caveats
 
