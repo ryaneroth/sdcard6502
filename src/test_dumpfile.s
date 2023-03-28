@@ -13,8 +13,6 @@ zp_fat32_variables = $46    ; 24 bytes
 fat32_workspace = $200      ; two pages
 buffer = $400               ; two pages
 
-filebuffer = $600
-
 subdirname:
   .asciiz "SUBFOLDR   "
 filename:
@@ -76,9 +74,9 @@ reset:
   jsr fat32_opendirent
 
   ; Read file contents into buffer
-  lda #<filebuffer
+  lda #<buffer
   sta fat32_address
-  lda #>filebuffer
+  lda #>buffer
   sta fat32_address+1
 
   jsr fat32_file_read
@@ -90,7 +88,7 @@ reset:
 
   ldy #0
 .printloop
-  lda filebuffer,y
+  lda buffer,y
   jsr print_char
 
   iny
