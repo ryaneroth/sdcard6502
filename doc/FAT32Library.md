@@ -75,8 +75,10 @@ and directory iteration APIs won't work any more.
 
 ## fat32\_deletefile
 
-Removes the currently open dirent from the card, as well as clearing all the clusters
+Removes a file from the card, as well as clearing all the clusters
 it useed from the FAT.
+
+Run this aftter `finddirent`!
 
 If you are going to read/write a dirent after this, you will need to re-open the directory!
 
