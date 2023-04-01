@@ -202,11 +202,15 @@ fat32_init:
   sta fat32_lastfoundfreecluster+2
   sta fat32_lastfoundfreecluster+3
 
-  ; As well as the last read cluster
+  ; As well as the last read clusters and sectors
   sta fat32_lastcluster
   sta fat32_lastcluster+1
   sta fat32_lastcluster+2
   sta fat32_lastcluster+3
+  sta fat32_lastsector
+  sta fat32_lastsector+1
+  sta fat32_lastsector+2
+  sta fat32_lastsector+3
 
   clc
   rts
@@ -591,6 +595,12 @@ fat32_allocatefile:
   ; Allocate an entire file in the FAT, with the
   ; file's size in fat32_bytesremaining
 
+  ; We will read a new sector the first time around
+  stz fat32_lastsector
+  stz fat32_lastsector+1
+  stz fat32_lastsector+2
+  stz fat32_lastsector+3
+
   ; BUG if we have a FAT enty at the end of a sector, it may be ignored!
 
   ; Allocate the first cluster.
@@ -956,6 +966,12 @@ fat32_writedirent:
   jsr fat32_wrcurrent
 
   ; Great, lets get this ready for other code to read in.
+  ; Read in the FAT the first time
+  stz fat32_lastsector
+  stz fat32_lastsector+1
+  stz fat32_lastsector+2
+  stz fat32_lastsector+3
+
   ; Seek to first cluster
   lda fat32_filecluster
   sta fat32_nextcluster
