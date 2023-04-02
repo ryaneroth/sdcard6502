@@ -82,6 +82,12 @@ Run this aftter `finddirent`!
 
 If you are going to read/write a dirent after this, you will need to re-open the directory!
 
+## fat32\_markdeleted
+
+Marks the file that was found using `finddirent` as "deleted".
+
+This is also used in `deletefile`.
+
 ## fat32\_writedirent
 
 Creates and writes a new directory entry in the open directory.
