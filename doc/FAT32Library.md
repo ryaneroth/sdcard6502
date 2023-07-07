@@ -76,7 +76,7 @@ and directory iteration APIs won't work any more.
 ## fat32\_deletefile
 
 Removes a file from the card, as well as clearing all the clusters
-it useed from the FAT.
+it used from the FAT.
 
 Run this aftter `finddirent`!
 
@@ -92,7 +92,7 @@ This is also used in `deletefile`.
 
 Creates and writes a new directory entry in the open directory.
 
-Make sure that you've allocated a cluster before running this!
+Make sure that you've allocated space for a file before running this!
 
 `fat32_filenamepointer` points to the filename to write.
 
