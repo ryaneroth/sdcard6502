@@ -659,7 +659,6 @@ fat32_allocatefile:
   cmp #1
   beq .one 
 
-  lda fat32_sectorspercluster
   lsr
 .cl
   lsr fat32_bytesremaining
