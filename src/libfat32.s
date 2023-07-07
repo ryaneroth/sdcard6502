@@ -654,12 +654,19 @@ fat32_allocatefile:
   sta fat32_bytesremaining
 
   ; Divide by sectors per cluster (power of 2)
+  ; If it's 1, then skip
+  lda fat32_sectorspercluster
+  cmp #1
+  beq .one 
+
   lda fat32_sectorspercluster
   lsr
 .cl
   lsr fat32_bytesremaining
   lsr
   bcc .cl
+
+.one
 
   ; We will be making a new cluster every time
   stz fat32_pendingsectors
