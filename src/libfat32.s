@@ -1209,9 +1209,6 @@ fat32_deletefile:
   sta (zp_sd_address),y
   dey
   sta (zp_sd_address),y
-  iny
-  iny 
-  iny
 
   ; Write the FAT
   jsr fat32_updatefat
