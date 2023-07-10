@@ -263,7 +263,7 @@ fat32_seekcluster:
 
   ; Branch if we don't need to check
   plp
-  bcc newsector
+  bcc .newsector
 
   ; Check if this sector is the same as the last one
   lda fat32_lastsector
