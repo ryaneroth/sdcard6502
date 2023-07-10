@@ -58,7 +58,7 @@ include an explicit dot.
 
 This allocates all the clusters for a new file.
 
-The file size to allocate (in bytes) should in `fat32_bytesremaining` before running.
+The 16-bit file size to allocate (in bytes) should in `fat32_bytesremaining` and `fat32_bytesremaining+1` before running.
 
 This needs to be run before opening a directory!
 
