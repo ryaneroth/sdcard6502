@@ -1203,12 +1203,15 @@ fat32_deletefile:
   ; Zero it out
   lda #0
   sta (zp_sd_address),y
-  iny
+  dey
+  sta (zp_sd_address),y
+  dey
+  sta (zp_sd_address),y
+  dey
   sta (zp_sd_address),y
   iny
-  sta (zp_sd_address),y
+  iny 
   iny
-  sta (zp_sd_address),y
 
   ; Write the FAT
   jsr fat32_updatefat
