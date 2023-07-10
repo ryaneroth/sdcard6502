@@ -221,9 +221,13 @@ fat32_init:
 
 
 fat32_seekcluster:
-  ; Gets ready to read fat32_nextcluster, and advances it according to the FAT
-  ; Before calling, set carry to compare the current FAT sector with lastsector.
-  ; Otherwize, clear carry to force reading the FAT.
+; Calculates the FAT sector given fat32_nextcluster and stores in zp_sd_currentsector
+; Optionally will load the 512 byte FAT sector into memory at fat32_readbuffer
+; If carry is set, subroutine is optimized to skip the loading if the expected
+; sector is already loaded. Clearing carry before calling will skip optimization
+; and force reload of the FAT sector. Once the FAT sector is loaded,
+; the next cluster in the chain is loaded into fat32_nextcluster and
+; zp_sd_currentsector is updated to point to the referenced data sector
 
   php
 
@@ -232,7 +236,7 @@ fat32_seekcluster:
   sta zp_sd_address
   lda #>fat32_readbuffer
   sta zp_sd_address+1
-  
+
   ; FAT sector = (cluster*4) / 512 = (cluster*2) / 256
   lda fat32_nextcluster
   asl
