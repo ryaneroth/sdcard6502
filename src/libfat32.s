@@ -1379,8 +1379,9 @@ fat32_file_write:
   ;bcs .fail	; this shouldn't happen
 
   ; Advance fat32_address by 512 bytes
+  clc
   lda fat32_address+1
-  adc #2                      ; carry already clear
+  adc #2           
   sta fat32_address+1
 
   ldx fat32_bytesremaining    ; note - actually loads sectors remaining
