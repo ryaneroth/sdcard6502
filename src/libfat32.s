@@ -976,7 +976,7 @@ fat32_writedirent:
   lda zp_sd_address+1
   cmp #>(fat32_readbuffer+$200)
   bcc .notoverbuffer
-  jsr fat32_wrcurrent ; if so, write the current sector
+  jsr fat32_writecurrentsector ; if so, write the current sector
   jsr fat32_readnextsector  ; then read the next one.
   bcs .dfail
   ldy #0
@@ -989,7 +989,7 @@ fat32_writedirent:
   lda #0
   sta (zp_sd_address),y
   ; Write the dirent.
-  jsr fat32_wrcurrent
+  jsr fat32_writecurrentsector
 
   ; Great, lets get this ready for other code to read in.
 
@@ -1018,7 +1018,7 @@ fat32_writedirent:
   sec
   rts
 
-fat32_wrcurrent:
+fat32_writecurrentsector:
 
   ; decrement the sector so we write the current one (not the next one)
   lda zp_sd_currentsector
@@ -1169,7 +1169,7 @@ fat32_markdeleted:
   sta fat32_nextcluster+1
 
   ; Write the dirent
-  jsr fat32_wrcurrent
+  jsr fat32_writecurrentsector
 
   ; Done
   clc
