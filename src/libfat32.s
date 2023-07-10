@@ -449,7 +449,7 @@ fat32_readnextsector:
   rts
 
 fat32_writenextsector:
-  ; Writes the next sector into the buffer at fat32_address.
+  ; Writes the next sector in a cluster chain from the buffer at fat32_address.
   ;
   ; On return, carry is set if its the end of the chain. 
 
