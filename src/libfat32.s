@@ -605,6 +605,8 @@ fat32_allocatecluster:
   sta fat32_filecluster+3
 
   ; Add marker for the following routines, so we don't think this is free.
+  ; (zp_sd_address),y is controlled by fat32_seekcluster, called in fat32_findnextfreecluster
+  ; this points to the most significant byte in the last selected 32-bit FAT entry.
   lda #$0f
   sta (zp_sd_address),y
 
