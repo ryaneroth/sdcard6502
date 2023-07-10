@@ -451,7 +451,7 @@ fat32_writenextsector:
 
   ; Maybe there are pending sectors in the current cluster
   lda fat32_pendingsectors
-  bne .wr
+  bne .beginwrite
 
   ; No pending sectors, check for end of cluster chain
   lda fat32_nextcluster+3
@@ -461,7 +461,7 @@ fat32_writenextsector:
   sec
   jsr fat32_seekcluster
 
-.wr
+.beginwrite
   jsr writesector
 
   ; Success - clear carry and return
