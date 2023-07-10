@@ -622,8 +622,6 @@ fat32_allocatefile:
   stz fat32_lastsector+2
   stz fat32_lastsector+3
 
-  ; BUG if we have a FAT enty at the end of a sector, it may be ignored!
-
   ; Allocate the first cluster.
   jsr fat32_allocatecluster
 
