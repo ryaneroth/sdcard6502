@@ -671,7 +671,7 @@ fat32_allocatefile:
   stz fat32_pendingsectors
 
   ; Find free clusters and allocate them for use for this file.
-.allocatelp
+.allocateloop
   ; Check if it's the last cluster in the chain 
   lda fat32_bytesremaining
   beq .lastcluster
@@ -760,7 +760,7 @@ fat32_allocatefile:
   dex
   stx fat32_bytesremaining    ; note - actually stores clusters remaining
 
-  bne .allocatelp
+  bne .allocateloop
 
   ; Done!
 .done
