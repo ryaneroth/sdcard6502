@@ -462,7 +462,7 @@ fat32_writenextsector:
   jsr fat32_seekcluster
 
 .beginwrite
-  jsr writesector
+  jsr .writesector
 
   ; Success - clear carry and return
   clc
