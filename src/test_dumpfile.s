@@ -1,11 +1,3 @@
-  .org $e000
-
-  .include "hwconfig.s"
-  .include "libsd.s"
-  .include "libfat32.s"
-  .include "liblcd.s"
-
-
 zp_sd_address = $40         ; 2 bytes
 zp_sd_currentsector = $42   ; 4 bytes
 zp_fat32_variables = $46    ; 24 bytes
@@ -14,22 +6,16 @@ fat32_workspace = $200      ; two pages
 
 buffer = $400
 
-
-subdirname:
-  .asciiz "SUBFOLDR   "
-filename:
-  .asciiz "DEEPFILETXT"
+  .org $a000
 
 reset:
   ldx #$ff
   txs
-
   ; Initialise
   jsr via_init
-  jsr lcd_init
   jsr sd_init
   jsr fat32_init
-  bcc .initsuccess
+  bcc _initsuccess
  
   ; Error during FAT32 initialization
   lda #'Z'
@@ -38,7 +24,7 @@ reset:
   jsr print_hex
   jmp loop
 
-.initsuccess
+_initsuccess:
 
   ; Open root directory
   jsr fat32_openroot
@@ -47,14 +33,14 @@ reset:
   ldx #<subdirname
   ldy #>subdirname
   jsr fat32_finddirent
-  bcc .foundsubdir
+  bcc _foundsubdir
 
   ; Subdirectory not found
   lda #'X'
   jsr print_char
   jmp loop
 
-.foundsubdir
+_foundsubdir:
 
   ; Open subdirectory
   jsr fat32_opendirent
@@ -63,14 +49,14 @@ reset:
   ldx #<filename
   ldy #>filename
   jsr fat32_finddirent
-  bcc .foundfile
+  bcc _foundfile
 
   ; File not found
   lda #'Y'
   jsr print_char
   jmp loop
 
-.foundfile
+_foundfile:
  
   ; Open file
   jsr fat32_opendirent
@@ -84,31 +70,38 @@ reset:
   jsr fat32_file_read
 
 
-  ; Dump data to LCD
-
-  jsr lcd_cleardisplay
+  ; Dump data to termianl
 
   ldy #0
-.printloop
+_printloop:
   lda buffer,y
-  jsr print_char
+  jsr OUTCH
 
   iny
 
   cpy #16
-  bne .not16
-  jsr lcd_setpos_startline1
-.not16
+  bne _not16
+_not16:
 
   cpy #32
-  bne .printloop
+  bne _printloop
 
 
   ; loop forever
 loop:
+  jsr EXIT
   jmp loop
 
+  .include "hwconfig.s"
+  .include "libsd.s"
+  .include "libfat32.s"
+  .include "liboutput.s"
 
   .org $fffc
   .word reset
   .word $0000
+
+subdirname:
+  .asciiz "SUBFOLDR   "
+filename:
+  .asciiz "DEEPFILETXT"

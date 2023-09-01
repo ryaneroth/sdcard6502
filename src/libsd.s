@@ -4,7 +4,6 @@
 ;   zp_sd_address - 2 bytes
 ;   zp_sd_currentsector - 4 bytes
 
-
 sd_init:
   ; Let the SD card boot up, by pumping the clock with SD CS disabled
 
@@ -14,14 +13,14 @@ sd_init:
 
   lda #SD_CS | SD_MOSI
   ldx #160               ; toggle the clock 160 times, so 80 low-high transitions
-.preinitloop:
+_preinitloop:
   eor #SD_SCK
   sta PORTA
   dex
-  bne .preinitloop
+  bne _preinitloop
   
 
-.cmd0 ; GO_IDLE_STATE - resets card to idle state, and SPI mode
+_cmd0: ; GO_IDLE_STATE - resets card to idle state, and SPI mode
   lda #<sd_cmd0_bytes
   sta zp_sd_address
   lda #>sd_cmd0_bytes
@@ -31,9 +30,9 @@ sd_init:
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne .initfailed
+  bne _initfailed
 
-.cmd8 ; SEND_IF_COND - tell the card how we want it to operate (3.3V, etc)
+_cmd8: ; SEND_IF_COND - tell the card how we want it to operate (3.3V, etc)
   lda #<sd_cmd8_bytes
   sta zp_sd_address
   lda #>sd_cmd8_bytes
@@ -43,7 +42,7 @@ sd_init:
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne .initfailed
+  bne _initfailed
 
   ; Read 32-bit return value, but ignore it
   jsr sd_readbyte
@@ -51,7 +50,7 @@ sd_init:
   jsr sd_readbyte
   jsr sd_readbyte
 
-.cmd55 ; APP_CMD - required prefix for ACMD commands
+_cmd55: ; APP_CMD - required prefix for ACMD commands
   lda #<sd_cmd55_bytes
   sta zp_sd_address
   lda #>sd_cmd55_bytes
@@ -61,9 +60,9 @@ sd_init:
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne .initfailed
+  bne _initfailed
 
-.cmd41 ; APP_SEND_OP_COND - send operating conditions, initialize card
+_cmd41: ; APP_SEND_OP_COND - send operating conditions, initialize card
   lda #<sd_cmd41_bytes
   sta zp_sd_address
   lda #>sd_cmd41_bytes
@@ -73,45 +72,45 @@ sd_init:
 
   ; Status response $00 means initialised
   cmp #$00
-  beq .initialized
+  beq _initialized
 
   ; Otherwise expect status response $01 (not initialized)
   cmp #$01
-  bne .initfailed
+  bne _initfailed
 
   ; Not initialized yet, so wait a while then try again.
   ; This retry is important, to give the card time to initialize.
 
   ldx #0
   ldy #0
-.delayloop
+_delayloop:
   dey
-  bne .delayloop
+  bne _delayloop
   dex
-  bne .delayloop
+  bne _delayloop
 
-  jmp .cmd55
+  jmp _cmd55
 
 
-.initialized
+_initialized:
   lda #'Y'
   jsr print_char
   rts
 
-.initfailed
+_initfailed:
   lda #'X'
   jsr print_char
-.loop
-  jmp .loop
+_loop:
+  jmp _loop
 
 
-sd_cmd0_bytes
+sd_cmd0_bytes:
   .byte $40, $00, $00, $00, $00, $95
-sd_cmd8_bytes
+sd_cmd8_bytes:
   .byte $48, $00, $00, $01, $aa, $87
-sd_cmd55_bytes
+sd_cmd55_bytes:
   .byte $77, $00, $00, $00, $00, $01
-sd_cmd41_bytes
+sd_cmd41_bytes:
   .byte $69, $40, $00, $00, $00, $01
 
 
@@ -122,7 +121,7 @@ sd_readbyte:
 
   ldx #$fe    ; Preloaded with seven ones and a zero, so we stop after eight bits
 
-.loop:
+_rbloop:
 
   lda #SD_MOSI                ; enable card (CS low), set MOSI (resting state), SCK low
   sta PORTA
@@ -134,15 +133,15 @@ sd_readbyte:
   and #SD_MISO
 
   clc                         ; default to clearing the bottom bit
-  beq .bitnotset              ; unless MISO was set
+  beq _bitnotset              ; unless MISO was set
   sec                         ; in which case get ready to set the bottom bit
-.bitnotset:
+_bitnotset:
 
   txa                         ; transfer partial result from X
   rol                         ; rotate carry bit into read result, and loop bit into carry
   tax                         ; save partial result back to X
   
-  bcs .loop                   ; loop if we need to read more bits
+  bcs _rbloop                   ; loop if we need to read more bits
 
   rts
 
@@ -153,15 +152,15 @@ sd_writebyte:
 
   ldx #8                      ; send 8 bits
 
-.loop:
+_wbloop:
   asl                         ; shift next bit into carry
   tay                         ; save remaining bits for later
 
   lda #0
-  bcc .sendbit                ; if carry clear, don't set MOSI for this bit
+  bcc _sendbit                ; if carry clear, don't set MOSI for this bit
   ora #SD_MOSI
 
-.sendbit:
+_sendbit:
   sta PORTA                   ; set MOSI (or not) first with SCK low
   eor #SD_SCK
   sta PORTA                   ; raise SCK keeping MOSI the same, to send the bit
@@ -169,7 +168,7 @@ sd_writebyte:
   tya                         ; restore remaining bits to send
 
   dex
-  bne .loop                   ; loop if there are more bits to send
+  bne _wbloop                   ; loop if there are more bits to send
 
   rts
 
@@ -184,8 +183,6 @@ sd_waitresult:
 
 sd_sendcommand:
   ; Debug print which command is being executed
-  jsr lcd_cleardisplay
-
   lda #'c'
   jsr print_char
   ldx #0
@@ -254,17 +251,17 @@ sd_readsector:
 
   jsr sd_waitresult
   cmp #$00
-  bne .fail
+  bne _libsdfail
 
   ; wait for data
   jsr sd_waitresult
   cmp #$fe
-  bne .fail
+  bne _libsdfail
 
   ; Need to read 512 bytes - two pages of 256 bytes each
-  jsr .readpage
+  jsr _readpage
   inc zp_sd_address+1
-  jsr .readpage
+  jsr _readpage
   dec zp_sd_address+1
 
   ; End command
@@ -274,25 +271,25 @@ sd_readsector:
   rts
 
 
-.fail
+_libsdfail:
   lda #'s'
   jsr print_char
   lda #':'
   jsr print_char
   lda #'f'
   jsr print_char
-.failloop
-  jmp .failloop
+_libsdfailloop:
+  jmp _libsdfailloop
 
 
-.readpage
+_readpage:
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
-.readloop
+_readloop:
   jsr sd_readbyte
   sta (zp_sd_address),y
   iny
-  bne .readloop
+  bne _readloop
   rts
 
 
