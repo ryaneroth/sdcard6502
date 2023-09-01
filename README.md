@@ -1,3 +1,5 @@
+Forked from https://github.com/gfoot/sdcard6502/ and modified to work with my PAL-1. Code can be assembled with ca65.
+
 # How to read SD cards with a 6532, step by step
 
 <img src="img/sdcardreader6502.jpg" title="SD card reader in a circuit">
