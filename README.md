@@ -1,4 +1,4 @@
-# How to read SD cards with a 6502, step by step
+# How to read SD cards with a 6532, step by step
 
 <img src="img/sdcardreader6502.jpg" title="SD card reader in a circuit">
 
