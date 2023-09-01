@@ -4,8 +4,7 @@ Forked from https://github.com/gfoot/sdcard6502/ and modified to work with my PA
 
 <img src="img/sdcardreader6502.jpg" title="SD card reader in a circuit">
 
-This guide shows how to connect up an SD card reader to a Ben Eater style 6502
-homebrew computer and use it to read data from SDHC cards.
+This guide shows how to connect up an SD card reader to a PAL-1 6502 and use it to read data from SDHC cards.
 
 The tutorial ends with being able to read arbitrary sectors from the SDHC card.
 Beyond that, I've included library-style code that can read from a FAT32 filesystem,
