@@ -6,7 +6,7 @@
 ; zp_fat32_variables - 24 bytes of zero-page storage for variables etc
 
 
-fat32_readbuffer = $2000
+fat32_readbuffer = fat32_workspace
 
 
 fat32_fatstart          = zp_fat32_variables + $00  ; 4 bytes
@@ -62,6 +62,10 @@ fat32_init:
   inc fat32_errorstage ; stage 2 = finding partition
 
   ; Find a FAT32 partition
+  ; 11 (0xb)  W95 FAT32
+  ; 12 (0xc)  W95 FAT32 (LBA)
+  ; 13 (0xe)  W95 FAT16 (LBA)
+  ; 14 (0xf)  W95 Ext'd (LBA)
 _FSTYPE_FAT32 = 12
   ldx #0
   lda fat32_readbuffer+$1c2,x
@@ -507,7 +511,6 @@ fat32_finddirent:
   ; Form ZP pointer to user's filename
   stx fat32_filenamepointer
   sty fat32_filenamepointer+1
-  
   ; Iterate until name is found or end of directory
 _direntloop:
   jsr fat32_readdirent

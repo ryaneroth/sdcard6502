@@ -36,7 +36,14 @@ _initsuccess:
   bcc _foundsubdir
 
   ; Subdirectory not found
-  lda #'X'
+  jsr newline
+  lda #'S'
+  jsr print_char
+  lda #'D'
+  jsr print_char
+  lda #'N'
+  jsr print_char
+  lda #'F'
   jsr print_char
   jmp loop
 
@@ -52,7 +59,13 @@ _foundsubdir:
   bcc _foundfile
 
   ; File not found
-  lda #'Y'
+  jsr newline
+  lda #'F'
+  jsr print_char
+  lda #'N'
+  jsr print_char
+  lda #'F'
+  jsr print_char
   jsr print_char
   jmp loop
 
@@ -70,20 +83,20 @@ _foundfile:
   jsr fat32_file_read
 
 
-  ; Dump data to termianl
+  ; Dump data to terminal
 
-  ldy #0
+  ldx #0
 _printloop:
-  lda buffer,y
+  lda buffer,x
   jsr OUTCH
 
-  iny
+  inx
 
-  cpy #16
+  cpx #16
   bne _not16
 _not16:
 
-  cpy #32
+  cpx #32
   bne _printloop
 
 
@@ -97,11 +110,13 @@ loop:
   .include "libfat32.s"
   .include "liboutput.s"
 
-  .org $fffc
+;  .org $fffc
   .word reset
   .word $0000
 
+; Change these to the name of the file and folder you added to the card
+; The strings must be 11 charaters long. Format is 8.3, filename.ext
 subdirname:
-  .asciiz "SUBFOLDR   "
+  .asciiz "FOLDER     "
 filename:
-  .asciiz "DEEPFILETXT"
+  .asciiz "HELLO   TXT"

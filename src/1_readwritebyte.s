@@ -91,6 +91,7 @@ cmd0:
 
   lda #'Y'
   jsr print_char
+  jsr newline
 
   ; loop forever
 loopforever:

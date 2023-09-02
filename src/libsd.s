@@ -183,11 +183,11 @@ sd_waitresult:
 
 sd_sendcommand:
   ; Debug print which command is being executed
-  lda #'c'
-  jsr print_char
-  ldx #0
-  lda (zp_sd_address,x)
-  jsr print_hex
+  ; lda #'c'
+  ; jsr print_char
+  ; ldx #0
+  ; lda (zp_sd_address,x)
+  ; jsr print_hex
 
   lda #SD_MOSI           ; pull CS low to begin command
   sta PORTA
@@ -215,7 +215,7 @@ sd_sendcommand:
   pha
 
   ; Debug print the result code
-  jsr print_hex
+  ; jsr print_hex
 
   ; End command
   lda #SD_CS | SD_MOSI   ; set CS high again
