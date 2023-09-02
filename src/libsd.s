@@ -93,8 +93,8 @@ _delayloop:
 
 
 _initialized:
-  lda #'Y'
-  jsr print_char
+  ;lda #'Y'
+  ;jsr print_char
   rts
 
 _initfailed:

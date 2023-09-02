@@ -7,7 +7,7 @@ fat32_workspace = $200      ; two pages
 buffer = $400
 
   .org $a000
-
+  jsr newline
 reset:
   ldx #$ff
   txs
