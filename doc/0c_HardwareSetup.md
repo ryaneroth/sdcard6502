@@ -27,7 +27,7 @@ The function of the main pins is as follows:
 * MOSI - master out, slave in - used to send data to the SD card
 * MISO - master in, slave out - used to receive data from the SD card
 
-# Connecting to the 6522 VIA
+# Connecting to the 6532 VIA
 
 The 6522 VIA already has its whole Port B used up by the LCD, as well as the
 top three pins of Port A.
@@ -38,10 +38,10 @@ pins on Port A, and not share pins with the LCD for now.
 __Make sure your SD adapter module does level-shifting before connecting it up!__
 If it doesn't, then this could damage your SD card.
 
-* Connect CS to PA4 (6522 pin 5)
-* Connect SCK to PA3 (6522 pin 4)
-* Connect MOSI to PA2 (6522 pin 3)
-* Connect MISO to PA1 (6522 pin 2)
+* Connect CS to PA4
+* Connect SCK to PA3
+* Connect MOSI to PA2
+* Connect MISO to PA1
 
 You also need to connect any power pins.  If your module doesn't have its own
 regulator, you may need to give it an additional 3.3V supply.  
