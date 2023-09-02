@@ -27,6 +27,8 @@ the code quite a bit.
 * [2  Encaplusated sd\_sendcommand](doc/2_SendCommand.md)
 * [3  Complete Initialization Sequence](doc/3_Initialization.md)
 * [4  Reading Sectors](doc/4_ReadingSectors.md)
+* [6  Reading File Content](src/test_dumpfile.s)
+  <img src="img/Hellow World.png" title="test_dumpfile.s output">
   
 ### Appendices
 * [A  Next Steps](doc/A_NextSteps.md)
