@@ -524,10 +524,35 @@ _comparenameloop:
   bne _direntloop ; no match
   dey
   bpl _comparenameloop
-
   ; Found it
   clc
   rts
+
+fat32_listdirent:
+  ; Lists directory entries.
+  ; The directory should already be open for iteration.
+
+  ; Iterate until name is found or end of directory
+_direntlistloop:
+  jsr fat32_readdirent
+  ldy #0
+  bcc _printnameloop
+  rts ; with carry set
+
+_printnameloop:
+  tya
+  pha
+  lda (zp_sd_address), y
+  sta $00, y
+  jsr OUTCH
+  pla
+  tay
+  iny
+  cpy #10
+  bne _printnameloop
+  jsr newline
+  clc
+  jsr _direntlistloop
 
 
 fat32_file_readbyte:

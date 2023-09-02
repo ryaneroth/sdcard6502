@@ -10,7 +10,8 @@ sd_init:
   ; We need to apply around 80 clock pulses with CS and MOSI high.
   ; Normally MOSI doesn't matter when CS is high, but the card is
   ; not yet is SPI mode, and in this non-SPI state it does care.
-
+  ldy #0
+_initretry:
   lda #SD_CS | SD_MOSI
   ldx #160               ; toggle the clock 160 times, so 80 low-high transitions
 _preinitloop:
@@ -98,6 +99,9 @@ _initialized:
   rts
 
 _initfailed:
+  iny
+  cpy #2
+  bne _initretry
   lda #'X'
   jsr print_char
 _loop:
