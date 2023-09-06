@@ -466,7 +466,6 @@ fat32_readdirent:
   ; If it's not at the end of the buffer, we have data already
   cmp #>(fat32_readbuffer+$200)
   bcc _gotdirdata
-
   ; Read another sector
   lda #<fat32_readbuffer
   sta fat32_address
@@ -475,7 +474,6 @@ fat32_readdirent:
 
   jsr fat32_readnextsector
   bcc _gotdirdata
-
 _endofdirectory:
   sec
   rts
@@ -531,28 +529,77 @@ _comparenameloop:
 fat32_listdirent:
   ; Lists directory entries.
   ; The directory should already be open for iteration.
-
-  ; Iterate until name is found or end of directory
 _direntlistloop:
   jsr fat32_readdirent
+  bcc _printloops
+  rts ; with clear carry set
+_printloops:
+  ; Check attributes
   ldy #0
-  bcc _printnameloop
-  rts ; with carry set
+  lda (zp_sd_address),y
+  cmp #0
+  beq _emptydirent
+  cmp #$E5
+  beq _emptydirent
+  ldy #11
+  lda (zp_sd_address),y
+  ldy #0
+  and #$3f
+  sta $98
+  cmp #16
+  beq _printdirnameloop
+  jmp _printfilenameloop
+_emptydirent:
+  clc
+  jsr fat32_listdirent
 
-_printnameloop:
+_printdirnameloop:
   tya
   pha
   lda (zp_sd_address), y
-  sta $00, y
-  jsr OUTCH
+  jsr print_char
   pla
   tay
   iny
-  cpy #10
-  bne _printnameloop
+  cpy #8
+  bne _printdirnameloop
   jsr newline
   clc
-  jsr _direntlistloop
+  jsr fat32_listdirent
+
+_printfilenameloop:
+  tya
+  pha
+  lda (zp_sd_address), y
+  cmp #$20
+  beq _printfilenamedot
+  jsr print_char
+  pla
+  tay
+  iny
+  cpy #8
+  bne _printfilenameloop
+_printfilenamedot:
+  ldy #8
+  lda (zp_sd_address), y
+  cmp #$20
+  beq _printfilenameext
+  lda #'.'
+  jsr print_char
+  ldy #8
+_printfilenameext:
+  tya
+  pha
+  lda (zp_sd_address), y
+  jsr print_char
+  pla
+  tay
+  iny
+  cpy #13
+  bne _printfilenameext
+  jsr newline
+  clc
+  jsr fat32_listdirent
 
 
 fat32_file_readbyte:
@@ -655,4 +702,3 @@ _wholesectorreadloop:
 
 _done:
   rts
-
