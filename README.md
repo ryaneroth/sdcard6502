@@ -2,7 +2,7 @@ Forked from https://github.com/gfoot/sdcard6502/ and modified to work with my PA
 
 # How to read SD cards with a 6532, step by step
 
-<img src="img/sdcardreader6502.jpg" title="SD card reader in a circuit">
+<img src="img/PALsdcardreader6502.jpg" title="SD card reader in a circuit">
 
 This guide shows how to connect up an SD card reader to a PAL-1 6502 and use it to read data from SDHC cards.
 
