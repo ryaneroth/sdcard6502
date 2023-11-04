@@ -1,13 +1,13 @@
 Forked from https://github.com/gfoot/sdcard6502/ and modified to work with my PAL-1. Code can be assembled with ca65.
 
-# How to read SD cards with a 6532, step by step
+# How to read and write SD cards with a 6532, step by step
 
 <img src="img/PALsdcardreader6502.jpg" title="SD card reader in a circuit">
 
-This guide shows how to connect up an SD card reader to a PAL-1 6502 and use it to read data from SDHC cards.
+This guide shows how to connect up an SD card reader to a PAL-1 6502 and use it to read/write data from SDHC cards.
 
 The tutorial ends with being able to read arbitrary sectors from the SDHC card.
-Beyond that, I've included library-style code that can read from a FAT32 filesystem,
+Beyond that, I've included library-style code that can read/write from a FAT32 filesystem,
 with some example programs.  For more information on this library code, see
 [FAT32 Library Documentation](doc/FAT32Library.md)
 

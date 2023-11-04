@@ -274,8 +274,17 @@ sd_readsector:
 
   rts
 
+_readpage
+  ; Read 256 bytes to the address at zp_sd_address
+  ldy #0
+_readpageloop
+  jsr sd_readbyte
+  sta (zp_sd_address),y
+  iny
+  bne _readpageloop
+  rts
 
-_libsdfail:
+_libsdfailloop:
   lda #'s'
   jsr print_char
   lda #':'
@@ -286,12 +295,28 @@ _libsdfailloop:
   jmp _libsdfailloop
 
 
-_readpage:
+_readpage
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
-_readloop:
+_readloop
   jsr sd_readbyte
-  sta (zp_sd_address),y
+  cmp #$ff
+  bne .waitidle
+
+  ; End command
+  lda #SD_CS | SD_MOSI ; set cs and mosi high (disconnected)
+  sta PORTA
+
+  rts
+
+.writepage
+  ; Write 256 bytes fom zp_sd_address
+  ldy #0
+.writeloop
+  lda (zp_sd_address),y
+  phy
+  jsr sd_writebyte
+  ply
   iny
   bne _readloop
   rts
