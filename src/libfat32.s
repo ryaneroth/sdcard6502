@@ -776,7 +776,7 @@ _notlastcluster:
   dex
   stx fat32_bytesremaining    ; note - actually stores clusters remaining
 
-  bne _allocateloop
+  bne _lastclusterallocateloop
 
   ; Done!
 _lastclusterdone:
@@ -787,6 +787,8 @@ _lastclusterdone:
   sta fat32_bytesremaining
   rts
 
+_lastclusterallocateloop:
+  jsr _allocateloop
 
 fat32_findnextfreecluster:
 ; Find next free cluster
@@ -919,7 +921,6 @@ fat32_writedirent:
 
   jsr fat32_readnextsector
   bcc _gotdirrent
-
 _endofdirectorywrite:
   sec
   rts
@@ -1353,3 +1354,57 @@ _wholesectorreadloop:
 _fat32_file_read_done:
   rts
 
+fat32_file_write:
+  ; Write a whole file from memory.  It's assumed the dirent has just been created 
+  ; and no data has been written yet.
+
+  ; Start at the first cluster for this file
+  lda fat32_filecluster
+  sta fat32_lastcluster
+  lda fat32_filecluster+1
+  sta fat32_lastcluster+1
+  lda fat32_filecluster+2
+  sta fat32_lastcluster+2
+  lda fat32_filecluster+3
+  sta fat32_lastcluster+3
+
+  ; Round the size up to the next whole sector
+  lda fat32_bytesremaining
+  cmp #1                      ; set carry if bottom 8 bits not zero
+  lda fat32_bytesremaining+1
+  adc #0                      ; add carry, if any
+  lsr                         ; divide by 2
+  adc #0                      ; round up
+
+  ; No data?
+  beq _fat32_file_write_done
+
+  ; Store sector count - not a byte count anymore.
+  sta fat32_bytesremaining
+
+  ; We will be making a new cluster the first time around
+  lda fat32_pendingsectors
+  sta zp_sd_currentsector
+
+
+  ; Write entire sectors from the user-supplied buffer
+_wholesectorwriteloop:
+  ; Write a sector from fat32_address
+  jsr fat32_writenextsector
+  ;bcs .fail	; this shouldn't happen
+
+  ; Advance fat32_address by 512 bytes
+  clc
+  lda fat32_address+1
+  adc #2           
+  sta fat32_address+1
+
+  ldx fat32_bytesremaining    ; note - actually loads sectors remaining
+  dex
+  stx fat32_bytesremaining    ; note - actually stores sectors remaining
+
+  bne _wholesectorwriteloop
+
+  ; Done!
+_fat32_file_write_done:
+  rts

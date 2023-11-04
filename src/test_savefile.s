@@ -1,11 +1,3 @@
-  .org $e000
-
-  .include "hwconfig.s"
-  .include "libsd.s"
-  .include "libfat32.s"
-  .include "liblcd.s"
-
-
 zp_sd_address = $40         ; 2 bytes
 zp_sd_currentsector = $42   ; 4 bytes
 zp_fat32_variables = $46    ; 49 bytes
@@ -14,21 +6,16 @@ fat32_workspace = $200      ; two pages
 
 buffer = $400
 
-subdirname:
-  .asciiz "SUBFOLDR   "
-filename:
-  .asciiz "SAVETESTTXT"
-
+  .org $a000
+  jsr newline
 reset:
   ldx #$ff
   txs
-
   ; Initialise
   jsr via_init
-  jsr lcd_init
   jsr sd_init
   jsr fat32_init
-  bcc .initsuccess
+  bcc _initsuccess
  
   ; Error during FAT32 initialization
   lda #'Z'
@@ -36,19 +23,19 @@ reset:
   lda fat32_errorstage
   jsr print_hex
   jmp loop
-.initsuccess
+_initsuccess:
 
   ; Make a dummy file.
   ; it should count from 0-255.
   ldy #0
-.fileloop
+_fileloop:
   tya
   sta buffer,y
   iny
-  bne .fileloop
+  bne _fileloop
 
   ; Allocating
-  lda #'a'
+  lda #'A'
   jsr print_char
 
   ; Set file size to one page, and push it as we will be clobbering it when we load the directory
@@ -63,7 +50,7 @@ reset:
   jsr fat32_allocatefile
 
   ; Opening Directory
-  lda #'o'
+  lda #'O'
   jsr print_char
 
   ; Open root directory
@@ -73,20 +60,20 @@ reset:
   ldx #<subdirname
   ldy #>subdirname
   jsr fat32_finddirent
-  bcc .foundsubdir
+  bcc _foundsubdir
 
   ; Subdirectory not found
   lda #'X'
   jsr print_char
   jmp loop
 
-.foundsubdir
+_foundsubdir:
 
   ; Open subdirectory
   jsr fat32_opendirent
 
   ; Writing dirent
-  lda #'w'
+  lda #'W'
   jsr print_char
 
   ; Restore filesize
@@ -105,7 +92,7 @@ reset:
   jsr fat32_writedirent
 
   ; Data
-  lda #'d'
+  lda #'D'
   jsr print_char
 
   ; Now write the file data
@@ -121,9 +108,19 @@ reset:
 
   ; loop forever
 loop:
+  jsr EXIT
   jmp loop
 
+  .include "hwconfig.s"
+  .include "libsd.s"
+  .include "libfat32.s"
+  .include "liboutput.s"
 
-  .org $fffc
+;  .org $fffc
   .word reset
   .word $0000
+
+subdirname:
+  .asciiz "SUBFOLDR   "
+filename:
+  .asciiz "SAVETESTTXT"
