@@ -628,14 +628,11 @@ fat32_allocatefile:
   ; file's size in fat32_bytesremaining
 
   ; We will read a new sector the first time around
-  lda fat32_lastsector
+  lda #$00
   sta zp_sd_currentsector
-  lda fat32_lastsector+1
-  sta zp_sd_currentsector
-  lda fat32_lastsector+2
-  sta zp_sd_currentsector
-  lda fat32_lastsector+3
-  sta zp_sd_currentsector
+  sta zp_sd_currentsector+1
+  sta zp_sd_currentsector+2
+  sta zp_sd_currentsector+3
 
   ; Allocate the first cluster.
   jsr fat32_allocatecluster
@@ -683,7 +680,7 @@ _cl:
 _one:
 
   ; We will be making a new cluster every time
-  lda fat32_pendingsectors
+  lda #$00
   sta zp_sd_currentsector
 
   ; Find free clusters and allocate them for use for this file.
@@ -1197,14 +1194,11 @@ fat32_deletefile:
   jsr fat32_markdeleted
 
   ; We will read a new sector the first time around
-  lda fat32_lastsector
+  lda #$00
   sta zp_sd_currentsector
-  lda fat32_lastsector+1
-  sta zp_sd_currentsector
-  lda fat32_lastsector+2
-  sta zp_sd_currentsector
-  lda fat32_lastsector+3
-  sta zp_sd_currentsector
+  sta zp_sd_currentsector+1
+  sta zp_sd_currentsector+2
+  sta zp_sd_currentsector+3
 
   ; Now we need to iterate through this file's cluster chain, and remove it from the FAT.
   ldy #0
@@ -1383,7 +1377,7 @@ fat32_file_write:
   sta fat32_bytesremaining
 
   ; We will be making a new cluster the first time around
-  lda fat32_pendingsectors
+  lda #$00
   sta zp_sd_currentsector
 
 
