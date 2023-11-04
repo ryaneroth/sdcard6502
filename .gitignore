@@ -1,0 +1,6 @@
+*.bin
+*.lst
+*.map
+*.o
+*.ptp
+*.cfg

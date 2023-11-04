@@ -506,11 +506,11 @@ _nextsectorincrementdone:
 fat32_updatefat:
  ; Preserve the current sector
   lda zp_sd_currentsector
-  pha 
+  pha
   lda zp_sd_currentsector+1
-  pha 
+  pha
   lda zp_sd_currentsector+2
-  pha 
+  pha
   lda zp_sd_currentsector+3
   pha
 
@@ -1384,7 +1384,7 @@ _wholesectorwriteloop:
   ; Advance fat32_address by 512 bytes
   clc
   lda fat32_address+1
-  adc #2           
+  adc #2
   sta fat32_address+1
 
   ldx fat32_bytesremaining    ; note - actually loads sectors remaining

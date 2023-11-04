@@ -353,12 +353,12 @@ _writepage:
   ; Write 256 bytes fom zp_sd_address
   ldy #0
 _writeloop:
+  tya ; transfer counter to a register
+  pha ; push counter to stack
   lda (zp_sd_address),y
-  tya
-  pha
   jsr sd_writebyte
-  pla
-  tay
+  pla ; pull counter from stack
+  tay ; transfer back
   iny
   bne _writeloop
   rts
