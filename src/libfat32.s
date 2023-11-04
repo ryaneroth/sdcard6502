@@ -1375,7 +1375,7 @@ fat32_file_write:
 
   ; We will be making a new cluster the first time around
   lda #$00
-  sta zp_sd_currentsector
+  sta fat32_pendingsectors
 
 
   ; Write entire sectors from the user-supplied buffer
