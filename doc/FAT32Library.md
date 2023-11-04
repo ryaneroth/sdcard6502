@@ -33,7 +33,7 @@ details.
 This initializes the library.  The SD library needs to be initialized first.
 
 On return, the carry is set if there was an error, and in that case you can read an
-error code from `fat32\_errorstage` that may help diagnosing what the problem was
+error code from `fat32_errorstage` that may help diagnosing what the problem was
 (probably some issue with the formatting of the SD card).
 
 ## fat32\_openroot
@@ -54,20 +54,18 @@ followed by 3 bytes of capitalized extension padded with spaces.  Note
 especially that it's not null-terminated, mustn't be lower case, and doesn't
 include an explicit dot.
 
-## fat32\_readdirent
+## fat32\_allocatefile
 
-Advances to the next entry in the directory, allowing for listing directories
-without knowing in advance what files they contain.
+This allocates all the clusters for a new file.
 
-On success the carry is clear and `zp\_sd\_address` points at the directory entry
-in memory, in raw byte format used by FAT32.
+The 16-bit file size to allocate (in bytes) should in `fat32_bytesremaining` and `fat32_bytesremaining+1` before running.
 
-Otherwise, if there are no more entries in the directory, then the carry is set.
+This needs to be run before opening a directory!
 
 ## fat32\_opendirent
 
 After `finddirent` or `readdirent`, this opens the active directory entry
-as referenced by `zp\_sd\_address`.
+as referenced by `zp_sd_address`.
 
 If the object is a directory, then subsequent calls to `finddirent` or `readdirent` will
 iterate over the subdirectory.
@@ -75,15 +73,57 @@ iterate over the subdirectory.
 If the object is a file, the file access APIs can then be used to read its contents,
 and directory iteration APIs won't work any more.
 
+## fat32\_deletefile
+
+Removes a file from the card, as well as clearing all the clusters
+it used from the FAT.
+
+Run this aftter `finddirent`!
+
+If you are going to read/write a dirent after this, you will need to re-open the directory!
+
+## fat32\_markdeleted
+
+Marks the file that was found using `finddirent` as "deleted".
+
+This is also used in `deletefile`.
+
+## fat32\_writedirent
+
+Creates and writes a new directory entry in the open directory.
+
+Make sure that you've allocated space for a file before running this!
+
+`fat32_filenamepointer` points to the filename to write.
+
+At the moment, folder creation is not supported, only files.
+
+## fat32\_readdirent
+
+Advances to the next entry in the directory, allowing for listing directories
+without knowing in advance what files they contain.
+
+On success the carry is clear and `zp_sd_address` points at the directory entry
+in memory, in raw byte format used by FAT32.
+
+Otherwise, if there are no more entries in the directory, then the carry is set.
+
 ## fat32\_file\_read
 
 Reads an entire file into memory, after it has been opened via `opendirent` above.
 
-Pass the target address at `fat32\_address`.
+Pass the target address at `fat32_address`.
 
 The file size is rounded up to the next multiple of 512 bytes, so data in
 memory beyond the strict end of the file may also be overwritten.
 
+## fat32\_file\_write
+
+Writes an entire file from memory to the SD card.
+
+The memory location to start from is in `fat32_address`
+
+Run this after running `writedirent`!
 
 # Caveats
 
