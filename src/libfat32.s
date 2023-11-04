@@ -629,10 +629,10 @@ fat32_allocatefile:
 
   ; We will read a new sector the first time around
   lda #$00
-  sta zp_sd_currentsector
-  sta zp_sd_currentsector+1
-  sta zp_sd_currentsector+2
-  sta zp_sd_currentsector+3
+  sta fat32_lastsector
+  sta fat32_lastsector+1
+  sta fat32_lastsector+2
+  sta fat32_lastsector+3
 
   ; Allocate the first cluster.
   jsr fat32_allocatecluster
@@ -915,6 +915,7 @@ fat32_writedirent:
 
   jsr fat32_readnextsector
   bcc _gotdirrent
+
 _endofdirectorywrite:
   sec
   rts
