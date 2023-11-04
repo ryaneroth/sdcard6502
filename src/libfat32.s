@@ -64,7 +64,7 @@ fat32_init:
 
   inc fat32_errorstage ; stage 2 = finding partition
 
-  ; Find a FAT32 partition, type 12 (0xc) W95 FAT32 (LBA)
+  ; Find a FAT32 LBA partition, type 12 (0xc)
 _FSTYPE_FAT32 = 12
   ldx #0
   lda fat32_readbuffer+$1c2,x
