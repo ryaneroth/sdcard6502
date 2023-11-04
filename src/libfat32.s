@@ -773,7 +773,7 @@ _notlastcluster:
   dex
   stx fat32_bytesremaining    ; note - actually stores clusters remaining
 
-  bne _lastclusterallocateloop
+  bne _allocateloop
 
   ; Done!
 _lastclusterdone:
@@ -783,9 +783,6 @@ _lastclusterdone:
   pla
   sta fat32_bytesremaining
   rts
-
-_lastclusterallocateloop:
-  jsr _allocateloop
 
 fat32_findnextfreecluster:
 ; Find next free cluster
@@ -1195,10 +1192,10 @@ fat32_deletefile:
 
   ; We will read a new sector the first time around
   lda #$00
-  sta zp_sd_currentsector
-  sta zp_sd_currentsector+1
-  sta zp_sd_currentsector+2
-  sta zp_sd_currentsector+3
+  sta fat32_lastsector
+  sta fat32_lastsector+1
+  sta fat32_lastsector+2
+  sta fat32_lastsector+3
 
   ; Now we need to iterate through this file's cluster chain, and remove it from the FAT.
   ldy #0
