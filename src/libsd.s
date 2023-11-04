@@ -274,17 +274,17 @@ sd_readsector:
 
   rts
 
-_readpage
+_readpage:
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
-_readpageloop
+_readpageloop:
   jsr sd_readbyte
   sta (zp_sd_address),y
   iny
   bne _readpageloop
   rts
 
-_libsdfailloop:
+_libsdfail:
   lda #'s'
   jsr print_char
   lda #':'
@@ -294,14 +294,54 @@ _libsdfailloop:
 _libsdfailloop:
   jmp _libsdfailloop
 
+sd_writesector:
+  ; Write a sector to the SD card.  A sector is 512 bytes.
+  ;
+  ; Parameters:
+  ;    zp_sd_currentsector   32-bit sector number
+  ;    zp_sd_address     address of buffer to take data from
+  
+  lda #SD_MOSI
+  sta PORTA
 
-_readpage
-  ; Read 256 bytes to the address at zp_sd_address
-  ldy #0
-_readloop
+  ; Command 24, arg is sector number, crc not checked
+  lda #$58                    ; CMD24 - WRITE_BLOCK
+  jsr sd_writebyte
+  lda zp_sd_currentsector+3   ; sector 24:31
+  jsr sd_writebyte
+  lda zp_sd_currentsector+2   ; sector 16:23
+  jsr sd_writebyte
+  lda zp_sd_currentsector+1   ; sector 8:15
+  jsr sd_writebyte
+  lda zp_sd_currentsector     ; sector 0:7
+  jsr sd_writebyte
+  lda #$01                    ; crc (not checked)
+  jsr sd_writebyte
+
+  jsr sd_waitresult
+  cmp #$00
+  bne _libsdfail
+
+  ; Send start token
+  lda #$fe
+  jsr sd_writebyte
+
+  ; Need to write 512 bytes - two pages of 256 bytes each
+  jsr _writepage
+  inc zp_sd_address+1
+  jsr _writepage
+  dec zp_sd_address+1
+
+  ; wait for data response
+  jsr sd_waitresult
+  and #$1f
+  cmp #$05
+  bne _libsdfail
+
+_waitidle:
   jsr sd_readbyte
   cmp #$ff
-  bne .waitidle
+  bne _waitidle
 
   ; End command
   lda #SD_CS | SD_MOSI ; set cs and mosi high (disconnected)
@@ -309,17 +349,16 @@ _readloop
 
   rts
 
-.writepage
+_writepage:
   ; Write 256 bytes fom zp_sd_address
   ldy #0
-.writeloop
+_writeloop:
   lda (zp_sd_address),y
-  phy
+  tya
+  pha
   jsr sd_writebyte
-  ply
+  pla
+  tay
   iny
-  bne _readloop
+  bne _writeloop
   rts
-
-
-
