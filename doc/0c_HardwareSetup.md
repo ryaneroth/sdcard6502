@@ -29,12 +29,6 @@ The function of the main pins is as follows:
 
 # Connecting to the 6532 VIA
 
-The 6522 VIA already has its whole Port B used up by the LCD, as well as the
-top three pins of Port A.
-
-To keep things simple to begin with, we're only going to use some of the spare
-pins on Port A, and not share pins with the LCD for now.
-
 __Make sure your SD adapter module does level-shifting before connecting it up!__
 If it doesn't, then this could damage your SD card.
 

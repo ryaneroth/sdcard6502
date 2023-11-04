@@ -5,10 +5,6 @@
 
 Here are some possible next steps.  Whether they're worthwhile depends on your needs.
 
-## Multiplexing - share pins with the LCD
-
-I've done this on a separate computer.  There are some caveats:
-
 ### MISO holds its state when CS is high
 
 This is an over-simplification - see the elm-chan doc for more details.  But in

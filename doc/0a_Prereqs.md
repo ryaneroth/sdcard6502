@@ -3,13 +3,8 @@
 
 # Prerequisites
 
-It's assumed that you're starting with something like Ben Eater's 6502 setup,
-which is basically the same as in Garth Wilson's tutorials,
-and the hardware specifics here are tailored for that.  It should be easy to
-adapt for other arrangements though - so long as you have a 6522 VIA.
-
-You'll also need a socket to plug your SD card into.  I bought two of these
-simple microSD adapters from a popular online marketplace:
+You'll need a socket to plug your SD card into.  I bought these simple microSD
+adapters from a popular online marketplace:
 
    <img src="../img/sdcardreader6502.jpg" width="350" title="SD card reader in a circuit">
 

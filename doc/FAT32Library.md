@@ -1,6 +1,6 @@
 # 6502 FAT32 Library
 
-Building on the basic SD code in the tuturials in this repo, I have implemented
+Building on the basic SD code in the tutorials in this repo, I have implemented
 basic FAT32 filesystem support.  There are some corners cut but nothing that
 should affect usage with SD cards.
 
@@ -8,9 +8,9 @@ should affect usage with SD cards.
 
 See [test\_dumpfile.s](../src/test\_dumpfile.s) for an example of usage.
 
-It initializes things, then searches the root directory for a folder called "subfoldr",
-then searches that subfolder for a file called "deepfile.txt", then loads it and prints
-its contents to the LCD.
+It initializes things, then searches the root directory for a folder called "FOLDER",
+then searches that subfolder for a file called "HELLO.TXT", then loads it and prints
+its contents to the serial console.
 
 This covers most things you'd need to do - of the APIs provided, it just skips
 enumerating files in a directory one by one, and reading a file byte by byte instead
@@ -24,7 +24,6 @@ right functions.
 Your code also needs to provide some memory for the SD and FAT32 libraries to
 use, by defining some specific symbols.  See the example program for more
 details.
-
 
 # High-level API
 
@@ -136,11 +135,9 @@ of corners have been cut:
 * Long filenames are ignored
 * Not much consistency checking is done
 
-
 # Note on exfat
 
 I also have an exfat implementation but my understanding is that exfat is
 patented by Microsoft and cannot be freely shared.  Exceptions were made for
 Linux implementations and members of the SD Consortium, but in general it is
 still not free to implement, so I can't share that code.
-
