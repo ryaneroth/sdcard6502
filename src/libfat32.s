@@ -7,7 +7,6 @@
 
 fat32_readbuffer = fat32_workspace
 
-
 fat32_fatstart                  = zp_fat32_variables + $00  ; 4 bytes
 fat32_datastart                 = zp_fat32_variables + $04  ; 4 bytes
 fat32_rootcluster               = zp_fat32_variables + $08  ; 4 bytes
@@ -1087,6 +1086,7 @@ fat32_readdirent:
   ; If it's not at the end of the buffer, we have data already
   cmp #>(fat32_readbuffer+$200)
   bcc _gotdirdata
+
   ; Read another sector
   lda #<fat32_readbuffer
   sta fat32_address
