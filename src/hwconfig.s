@@ -5,6 +5,7 @@ DDRB = $1703
 
 OUTCH = $1EA0
 GETCH = $1E5A
+PRTBYT = $1E3B
 
 EXIT  = $1C4F
 

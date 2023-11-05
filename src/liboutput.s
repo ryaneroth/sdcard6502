@@ -6,27 +6,15 @@ newline:
   rts
 
 print_char:
+; JSR OUTCH    1EA0     Print ASCII char  A     -       Xis preserved
+;                       in A on TTY                     Y = FF
+;                                                       A = FF
   jsr OUTCH
   rts
 
 print_hex:
-  pha
-  ror
-  ror
-  ror
-  ror
-  jsr print_nybble
-  pla
-  pha
-  jsr print_nybble
-  pla
-  rts
-print_nybble:
-  and #15
-  cmp #10
-  bmi skipletter
-  adc #6
-skipletter:
-  adc #48
-  jsr print_char
+; JSR PRTBYT   1E3B     Prints A as       A     -       A preserved
+;                       2 Hex Char.                     X preserved
+;                                                       Y = FF
+  jsr PRTBYT
   rts

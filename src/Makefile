@@ -1,4 +1,4 @@
-PROGRAM = test_savefile
+PROGRAM = test_listfile
 
 all: $(PROGRAM).ptp
 
