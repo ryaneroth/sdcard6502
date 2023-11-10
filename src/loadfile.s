@@ -95,8 +95,9 @@ foundfile:
   sty print_pointer+1
   jsr print_string
   jsr read_address
+  jsr newline
   ; Open file
-  jsr fat32_opendirent ; Point zp_sd_address at the dirent
+  jsr fat32_opendirent
   ; Store file size
   lda fat32_bytesremaining 
   sta copy_size
@@ -107,9 +108,13 @@ foundfile:
   sta fat32_address
   lda #>buffer
   sta fat32_address+1
+  ldx #<reading
+  ldy #>reading
+  stx print_pointer
+  sty print_pointer+1
+  jsr print_string
+  ; Can hang on the file read sometimes
   jsr fat32_file_read
-
-  jsr newline
   ldx #<copying
   ldy #>copying
   stx print_pointer
@@ -261,6 +266,8 @@ file_not_found:
   .asciiz "File not found"
 memory_destination:
   .asciiz "Memory destination > "
+reading:
+  .asciiz "Reading data from SD card"
 copying:
   .asciiz "Copying data to destination"
 ;----------------------------------------------
