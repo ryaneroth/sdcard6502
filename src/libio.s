@@ -18,3 +18,9 @@ print_hex:
 ;                                                       Y = FF
   jsr PRTBYT
   rts
+
+get_input:
+; JSR GETCH    1E5A     Put character     -     A       X preserved
+;                       from TTY in A                   Y = FF
+  jsr GETCH
+  rts

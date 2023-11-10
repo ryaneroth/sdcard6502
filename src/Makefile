@@ -1,4 +1,4 @@
-PROGRAM = test_listfile
+PROGRAM = loadfile
 
 all: $(PROGRAM).ptp
 

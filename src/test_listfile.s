@@ -91,7 +91,7 @@ loop:
   .include "hwconfig.s"
   .include "libsd.s"
   .include "libfat32.s"
-  .include "liboutput.s"
+  .include "libio.s"
 
 ;  .org $fffc
   .word reset
