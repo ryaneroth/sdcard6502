@@ -1,19 +1,17 @@
 ;----------------------------------------------
 ; Copy data from SD card to memory location
 ;----------------------------------------------
-copy_size = $27             ; 2 bytes
-copy_destination = $29      ; 2 bytes
-input_pointer = $2B         ; 11 bytes
-print_pointer = $38         ; 2 bytes
-zp_sd_address = $40         ; 2 bytes
-zp_sd_currentsector = $42   ; 4 bytes
-zp_fat32_variables = $46    ; 49 bytes
-copy_swap = $78             ; 4 bytes
-dirent_pointer = $100       ; 2 bytes
-dirent_end_counter = $102   ; 2 bytes
-
-fat32_workspace = $200      ; two pages
-
+copy_size = $27              ; 2 bytes
+copy_destination = $29       ; 2 bytes
+input_pointer = $2B          ; 11 bytes
+print_pointer = $38          ; 2 bytes
+zp_sd_address = $40          ; 2 bytes
+zp_sd_currentsector = $42    ; 4 bytes
+zp_fat32_variables = $46     ; 49 bytes
+copy_swap = $78              ; 4 bytes
+dirent_pointer = $100        ; 2 bytes
+dirent_end_counter = $102    ; 2 bytes
+fat32_workspace = $200       ; 2 pages
 buffer = $400
 
 .org $a000
@@ -21,7 +19,9 @@ buffer = $400
 reset:
   ldx #$ff
   txs
-  ; Initialise
+;----------------------------------------------
+; SD card and FAT32 initilization
+;----------------------------------------------
   jsr via_init
   jsr sd_init
   jsr fat32_init
@@ -37,7 +37,9 @@ reset:
 _initsuccess:
   ; Open root directory
   jsr fat32_openroot
-
+;----------------------------------------------
+; Input prompt
+;----------------------------------------------
 print_help:
   jsr newline
   ldx #<help_menu
@@ -45,7 +47,6 @@ print_help:
   stx print_pointer
   sty print_pointer+1
   jsr print_string
-
 print_prompt:
   jsr newline
   lda #'>'
@@ -59,7 +60,9 @@ read_prompt_input:
   cmp #'H'
   beq print_help
   jsr print_prompt
-
+;----------------------------------------------
+; File reading
+;----------------------------------------------
 load_file:
   jsr newline
   ldx #<input_filename
@@ -88,7 +91,7 @@ load_file:
 
 foundfile:
   jsr newline
-  ; get destination address
+  ; Get destination address
   ldx #<memory_destination
   ldy #>memory_destination
   stx print_pointer
@@ -120,7 +123,7 @@ foundfile:
   stx print_pointer
   sty print_pointer+1
   jsr print_string
-; start copy
+  ; Start copy
   jsr start_copy
 
   jsr EXIT
@@ -151,7 +154,7 @@ max_prefix_character:
   jsr get_input
   cpx #11
   beq max_suffix_character
-  cmp #$0D                    ; Enter key
+  cmp #$0D                   ; Enter key
   beq pad_suffix
   sta input_pointer, x
   jmp read_suffix_next
@@ -173,16 +176,16 @@ read_address_next:
   jsr get_input
   cpx #2
   beq read_address_done
-  and #$0F                ; '0'-'9' -> 0-9
-  asl                     ; multiply by 2
-  sta copy_destination, x ; temp store in temp
-  asl                     ; again multiply by 2 (*4)
-  asl                     ; again multiply by 2 (*8)
+  and #$0F                   ; '0'-'9' -> 0-9
+  asl                        ; multiply by 2
+  sta copy_destination, x    ; temp store in temp
+  asl                        ; again multiply by 2 (*4)
+  asl                        ; again multiply by 2 (*8)
   clc
-  adc copy_destination, x ; as result, a = x*8 + x*2
+  adc copy_destination, x    ; as result, a = x*8 + x*2
   sta copy_destination, x
   jsr get_input
-  and #$0F                ; '0'-'9' -> 0-9
+  and #$0F                   ; '0'-'9' -> 0-9
   adc copy_destination, x
   jsr hex_to_dec
   sta copy_destination, x
@@ -198,58 +201,58 @@ print_string:
 print_string_loop:
   txa
   tay
-  lda (print_pointer), y       ; get from string
-  beq print_string_exit        ; end of string
-  jsr OUTCH                    ; write to output
+  lda (print_pointer), y     ; get from string
+  beq print_string_exit      ; end of string
+  jsr OUTCH                  ; write to output
   inx
-  bne print_string_loop        ; do next char
+  bne print_string_loop      ; do next char
 print_string_exit:
   rts
 ;----------------------------------------------
 ; Hex to decimal converter
 ;----------------------------------------------
 hex_to_dec:
-  sed           ; switch to decimal mode
-  tay           ; transfer accumulator to y register
-  lda #00       ; reset accumulator
+  sed                        ; switch to decimal mode
+  tay                        ; transfer accumulator to y register
+  lda #00                    ; reset accumulator
 
 hex_loop:
-  dey           ; decrement x by 1
-  cpy #00       ; if y < 0,
-  bmi hex_break ; then break;
-  clc           ; else clear carry
-  adc #01       ; to increment accumulator by 1
-  jmp hex_loop  ; branch always
+  dey                        ; decrement x by 1
+  cpy #00                    ; if y < 0,
+  bmi hex_break              ; then break;
+  clc                        ; else clear carry
+  adc #01                    ; to increment accumulator by 1
+  jmp hex_loop               ; branch always
 
 hex_break:
   cld
-  rts ; return from subroutine
+  rts                        ; return from subroutine
 ;----------------------------------------------
 ; Relocate code
 ;----------------------------------------------
 start_copy:
-  lda #<buffer                   ; set our source memory address to copy from
+  lda #<buffer               ; set our source memory address to copy from
   sta copy_swap
   lda #>buffer
   sta copy_swap+1
-  lda copy_destination+1         ; set our destination memory to copy to
+  lda copy_destination+1     ; set our destination memory to copy to
   sta copy_swap+2
   lda copy_destination
   sta copy_swap+3
-  ldx #$00                       ; reset x for our loop
-  ldy #$00                       ; reset y for our loop
+  ldx #$00                   ; reset x for our loop
+  ldy #$00                   ; reset y for our loop
 
 copy_loop:
-  lda (copy_swap),y              ; indirect index source memory address
-  sta (copy_swap+2),y            ; indirect index dest memory address
+  lda (copy_swap),y          ; indirect index source memory address
+  sta (copy_swap+2),y        ; indirect index dest memory address
   iny
-  bne copy_loop                  ; loop until our dest goes over 255
-  inc copy_swap+1                ; increment high order source memory address
-  inc copy_swap+3                ; increment high order dest memory address
-  cpx copy_size+1                ; compare with the last address we want to write
+  bne copy_loop              ; loop until our dest goes over 255
+  inc copy_swap+1            ; increment high order source memory address
+  inc copy_swap+3            ; increment high order dest memory address
+  cpx copy_size+1            ; compare with the last address we want to write
   beq stop_copy
   inx
-  jmp copy_loop                  ; if we're not there yet, loop
+  jmp copy_loop              ; if we're not there yet, loop
 
 stop_copy:
   rts
