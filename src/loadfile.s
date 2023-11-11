@@ -25,16 +25,14 @@ reset:
   jsr via_init
   jsr sd_init
   jsr fat32_init
-  bcc _initsuccess
-
+  bcc initsuccess
   ; Error during FAT32 initialization
   lda #'Z'
   jsr print_char
   lda fat32_errorstage
   jsr print_hex
   jsr EXIT
-
-_initsuccess:
+initsuccess:
   ; Open root directory
   jsr fat32_openroot
 ;----------------------------------------------
@@ -59,7 +57,9 @@ read_prompt_input:
   beq load_file
   cmp #'H'
   beq print_help
-  jsr print_prompt
+  cmp #'E'
+  bne print_prompt
+  jsr EXIT
 ;----------------------------------------------
 ; File reading
 ;----------------------------------------------
@@ -71,13 +71,11 @@ load_file:
   sty print_pointer+1
   jsr print_string
   jsr read_input
-
   ; Find file by name
   ldx #<input_pointer
   ldy #>input_pointer
   jsr fat32_finddirent
   bcc foundfile
-
   ; File not found
   jsr newline
   ldx #<file_not_found
@@ -88,7 +86,6 @@ load_file:
   ; Open root directory
   jsr fat32_openroot
   jmp print_prompt
-
 foundfile:
   jsr newline
   ; Get destination address
@@ -125,8 +122,8 @@ foundfile:
   jsr print_string
   ; Start copy
   jsr start_copy
-
-  jsr EXIT
+  ; Return to prompt
+  jsr print_prompt
 ;----------------------------------------------
 ; Read in filename
 ;----------------------------------------------
@@ -173,7 +170,7 @@ max_suffix_character:
 read_address:
   ldx #0
 read_address_next:
-  jsr get_input
+  jsr get_input              ; read first digit of hex address,
   cpx #2
   beq read_address_done
   and #$0F                   ; '0'-'9' -> 0-9
@@ -184,7 +181,7 @@ read_address_next:
   clc
   adc copy_destination, x    ; as result, a = x*8 + x*2
   sta copy_destination, x
-  jsr get_input
+  jsr get_input              ; read second digit of hex address
   and #$0F                   ; '0'-'9' -> 0-9
   adc copy_destination, x
   jsr hex_to_dec
@@ -215,7 +212,6 @@ hex_to_dec:
   sed                        ; switch to decimal mode
   tay                        ; transfer accumulator to y register
   lda #00                    ; reset accumulator
-
 hex_loop:
   dey                        ; decrement x by 1
   cpy #00                    ; if y < 0,
@@ -223,7 +219,6 @@ hex_loop:
   clc                        ; else clear carry
   adc #01                    ; to increment accumulator by 1
   jmp hex_loop               ; branch always
-
 hex_break:
   cld
   rts                        ; return from subroutine
@@ -241,7 +236,6 @@ start_copy:
   sta copy_swap+3
   ldx #$00                   ; reset x for our loop
   ldy #$00                   ; reset y for our loop
-
 copy_loop:
   lda (copy_swap),y          ; indirect index source memory address
   sta (copy_swap+2),y        ; indirect index dest memory address
@@ -253,7 +247,6 @@ copy_loop:
   beq stop_copy
   inx
   jmp copy_loop              ; if we're not there yet, loop
-
 stop_copy:
   rts
 ;----------------------------------------------
@@ -261,6 +254,8 @@ stop_copy:
 ;----------------------------------------------
 help_menu:
   .byte "L    Load file"
+  .byte $0D, $0A
+  .byte "E    Exit"
   .byte $0D, $0A
   .asciiz "H    Print help"
 input_filename:
