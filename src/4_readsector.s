@@ -19,7 +19,7 @@ PORTA_OUTPUTPINS = E | RW | RS | SD_CS | SD_SCK | SD_MOSI
 zp_sd_cmd_address = $40
 
 
-  .org $a000
+  .org $0200
 
 reset:
   ldx #$ff

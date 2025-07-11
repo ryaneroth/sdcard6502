@@ -1,6 +1,6 @@
 newline:
   lda #$0D                   ; CR
-  jsr OUTCH                  ; Send a carriage retuen  
+  jsr OUTCH                  ; Send a carriage return
   lda #$0A                   ; LF
   jsr OUTCH                  ; Send the line feed
   rts

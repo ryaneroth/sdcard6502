@@ -17,7 +17,7 @@ SD_MISO = %00000010
 PORTA_OUTPUTPINS = E | RW | RS | SD_CS | SD_SCK | SD_MOSI
 
 
-  .org $e000
+  .org $0200
 reset:
   ldx #$ff
   txs
@@ -43,7 +43,7 @@ preinitloop:
   sta PORTA
   dex
   bne preinitloop
-  
+
   ; Read a byte from the card, expecting $ff as no commands have been sent
   jsr sd_readbyte
   jsr print_hex
@@ -193,6 +193,14 @@ skipletter:
   jsr print_char
   rts
 
-  .org $fffc
+newline:
+  lda #$0D                   ; CR
+  jsr OUTCH                  ; Send a carriage retuen
+  lda #$0A                   ; LF
+  jsr OUTCH                  ; Send the line feed
+  rts
+
+;  .org $fffc
   .word reset
   .word $0000
+

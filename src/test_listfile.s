@@ -9,17 +9,17 @@ fat32_workspace = $200      ; two pages
 
 buffer = $400
 
-  .org $a000
+  .org $A000
   jsr newline
 reset:
   ldx #$ff
   txs
-  ; Initialise
+  ; Initialize
   jsr via_init
   jsr sd_init
   jsr fat32_init
   bcc _initsuccess
- 
+
   ; Error during FAT32 initialization
   lda #'Z'
   jsr print_char

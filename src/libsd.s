@@ -19,7 +19,6 @@ _preinitloop:
   sta PORTA
   dex
   bne _preinitloop
-  
 
 _cmd0: ; GO_IDLE_STATE - resets card to idle state, and SPI mode
   lda #<sd_cmd0_bytes
@@ -120,7 +119,7 @@ sd_cmd41_bytes:
 
 
 sd_readbyte:
-  ; Enable the card and tick the clock 8 times with MOSI high, 
+  ; Enable the card and tick the clock 8 times with MOSI high,
   ; capturing bits from MISO and returning them
 
   ldx #$fe    ; Preloaded with seven ones and a zero, so we stop after eight bits
@@ -144,7 +143,7 @@ _bitnotset:
   txa                         ; transfer partial result from X
   rol                         ; rotate carry bit into read result, and loop bit into carry
   tax                         ; save partial result back to X
-  
+
   bcs _rbloop                   ; loop if we need to read more bits
 
   rts
@@ -235,7 +234,7 @@ sd_readsector:
   ; Parameters:
   ;    zp_sd_currentsector   32-bit sector number
   ;    zp_sd_address     address of buffer to receive data
-  
+
   lda #SD_MOSI
   sta PORTA
 
@@ -300,7 +299,7 @@ sd_writesector:
   ; Parameters:
   ;    zp_sd_currentsector   32-bit sector number
   ;    zp_sd_address     address of buffer to take data from
-  
+
   lda #SD_MOSI
   sta PORTA
 

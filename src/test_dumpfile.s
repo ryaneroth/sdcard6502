@@ -6,7 +6,7 @@ fat32_workspace = $200      ; two pages
 
 buffer = $400
 
-  .org $a000
+  .org $2000
   jsr newline
 reset:
   ldx #$ff
@@ -16,7 +16,7 @@ reset:
   jsr sd_init
   jsr fat32_init
   bcc _initsuccess
- 
+
   ; Error during FAT32 initialization
   lda #'Z'
   jsr print_char
@@ -70,7 +70,7 @@ _foundsubdir:
   jmp loop
 
 _foundfile:
- 
+
   ; Open file
   jsr fat32_opendirent
 
@@ -117,6 +117,6 @@ loop:
 ; Change these to the name of the file and folder you added to the card
 ; The strings must be 11 charaters long. Format is 8.3, filename.ext
 subdirname:
-  .asciiz "FOLDER     "
+  .asciiz "1          "
 filename:
-  .asciiz "HELLO   TXT"
+  .asciiz "LOCATIONTXT"
