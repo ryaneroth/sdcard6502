@@ -115,7 +115,7 @@ loop:
   .word $0000
 
 ; Change these to the name of the file and folder you added to the card
-; The strings must be 11 charaters long. Format is 8.3, filename.ext
+; The strings must be 11 characters long. Format is 8.3, filename.ext
 subdirname:
   .asciiz "1          "
 filename:
