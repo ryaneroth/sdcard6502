@@ -399,8 +399,7 @@ _spcshiftloopdone:
   tay
 
   ; See if it's the end of the chain
-  ; Save raw value for EOC check
-  ;lda fat32_nextcluster+3
+  lda fat32_nextcluster+3
   cmp #$0F
   bcc _notendofchain
   lda fat32_nextcluster+2
@@ -453,8 +452,10 @@ fat32_readnextsector:
 
 _not_eoc:
 
-  ; Prepare to read the next cluster
-  sec
+  ; Prepare to read the next cluster.
+  ; Force FAT reload: fat32_readbuffer is also used for data sectors,
+  ; so the cached FAT contents may have been overwritten.
+  clc
   jsr fat32_seekcluster
 
 _readsector:
@@ -501,8 +502,10 @@ fat32_writenextsector:
   lda fat32_nextcluster+3
   bmi _writeendofchain
 
-  ; Prepare to read the next cluster
-  sec
+  ; Prepare to read the next cluster.
+  ; Force FAT reload: fat32_readbuffer is also used for data sectors,
+  ; so the cached FAT contents may have been overwritten.
+  clc
   jsr fat32_seekcluster
 
 _beginwrite:
