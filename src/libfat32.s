@@ -258,9 +258,33 @@ fat32_seekcluster:
   lda fat32_nextcluster+3
   rol
   sta zp_sd_currentsector+2
+  lda #0
+  sta zp_sd_currentsector+3
   ; note: cluster numbers never have the top bit set, so no carry can occur
 
+  ; Guard against invalid cluster values: FAT sector offset must be within FAT size.
+  lda zp_sd_currentsector+3
+  cmp fat32_sectorsperfat+3
+  bcc _cluster_ok
+  bne _cluster_invalid
+  lda zp_sd_currentsector+2
+  cmp fat32_sectorsperfat+2
+  bcc _cluster_ok
+  bne _cluster_invalid
+  lda zp_sd_currentsector+1
+  cmp fat32_sectorsperfat+1
+  bcc _cluster_ok
+  bne _cluster_invalid
+  lda zp_sd_currentsector
+  cmp fat32_sectorsperfat
+  bcc _cluster_ok
+_cluster_invalid:
+  plp
+  jmp _invalidcluster
+_cluster_ok:
+
   ; Add FAT starting sector
+  clc
   lda zp_sd_currentsector
   adc fat32_fatstart
   sta zp_sd_currentsector
@@ -296,6 +320,9 @@ _newsector:
 
   ; Read the sector from the FAT
   jsr sd_readsector
+  bcc :+
+  jmp _invalidcluster
+:
 
   ; Update fat32_lastsector
 
@@ -457,6 +484,7 @@ _not_eoc:
   ; so the cached FAT contents may have been overwritten.
   clc
   jsr fat32_seekcluster
+  bcs _readendofchain
 
 _readsector:
   dec fat32_pendingsectors
@@ -469,6 +497,7 @@ _readsector:
 
   ; Read the sector
   jsr sd_readsector
+  bcs _readendofchain
 
   ; Advance to next sector
   inc zp_sd_currentsector
@@ -532,6 +561,7 @@ _writesector:
 
   ; Write the sector
   jsr sd_writesector
+  bcs _writeendofchain
 
   ; Advance to next sector
   inc zp_sd_currentsector
@@ -573,6 +603,7 @@ fat32_updatefat:
 
   ; Write the FAT sector
   jsr sd_writesector
+  bcs _fatwrite_fail
 
   ; Check if FAT mirroring is enabled
   lda fat32_numfats
@@ -581,6 +612,7 @@ fat32_updatefat:
 
   ; Add the last sector to the amount of sectors per FAT
   ; (to get the second fat location)
+  clc
   lda fat32_lastsector
   adc fat32_sectorsperfat
   sta zp_sd_currentsector
@@ -596,6 +628,7 @@ fat32_updatefat:
 
   ; Write the FAT sector
   jsr sd_writesector
+  bcs _fatwrite_fail
 
 _onefat:
   ; Pull back the current sector
@@ -608,10 +641,29 @@ _onefat:
   pla
   sta zp_sd_currentsector
 
+  clc
+  rts
+
+_fatwrite_fail:
+  ; Pull back the current sector before returning failure
+  pla
+  sta zp_sd_currentsector+3
+  pla
+  sta zp_sd_currentsector+2
+  pla
+  sta zp_sd_currentsector+1
+  pla
+  sta zp_sd_currentsector
+  sec
   rts
 
 fat32_openroot:
   ; Prepare to read the root directory
+
+  lda #<fat32_readbuffer
+  sta fat32_address
+  lda #>fat32_readbuffer
+  sta fat32_address+1
 
   lda fat32_rootcluster
   sta fat32_nextcluster
@@ -629,8 +681,11 @@ fat32_openroot:
   clc
   jsr fat32_seekcluster
 
-  ; Set the pointer to a large value so we always read a sector the first time through
-  lda #$ff
+  ; Force the first directory read to cross the buffer boundary cleanly.
+  ; Use readbuffer+$1e0 so the initial +32 lands exactly on readbuffer+$200.
+  lda #<(fat32_readbuffer+$1e0)
+  sta zp_sd_address
+  lda #>(fat32_readbuffer+$1e0)
   sta zp_sd_address+1
 
   rts
@@ -640,6 +695,7 @@ fat32_allocatecluster:
 
   ; Find a free cluster
   jsr fat32_findnextfreecluster
+  bcs _fat32_allocatecluster_fail
 
   ; Cache the value so we can add the address of the next one later, if any
   lda fat32_lastfoundfreecluster
@@ -661,6 +717,18 @@ fat32_allocatecluster:
   lda #$0f
   sta (zp_sd_address),y
 
+  clc
+  rts
+
+_invalidcluster:
+  ; Treat invalid FAT cluster values as end-of-chain.
+  lda #$FF
+  sta fat32_nextcluster+3
+  sec
+  rts
+
+_fat32_allocatecluster_fail:
+  sec
   rts
 
 fat32_allocatefile:
@@ -676,6 +744,9 @@ fat32_allocatefile:
 
   ; Allocate the first cluster.
   jsr fat32_allocatecluster
+  bcc :+
+  jmp _fat32_allocatefile_fail_early
+:
 
   ; We don't properly support 64k+ files, as it's unnecessary complication given
   ; the 6502's small address space. So we'll just empty out the top two bytes.
@@ -773,6 +844,9 @@ _notlastcluster:
 
   ; Find the next cluster
   jsr fat32_findnextfreecluster
+  bcc :+
+  jmp _fat32_allocatefile_fail_afterpush
+:
 
   ; Add marker so we don't think this is free.
   lda #$0f
@@ -828,6 +902,20 @@ _lastclusterdone:
   sta fat32_bytesremaining+1
   pla
   sta fat32_bytesremaining
+  clc
+  rts
+
+_fat32_allocatefile_fail_afterpush:
+  ; Restore original byte count before returning failure.
+  pla
+  sta fat32_bytesremaining+1
+  pla
+  sta fat32_bytesremaining
+  sec
+  rts
+
+_fat32_allocatefile_fail_early:
+  sec
   rts
 
 
@@ -842,7 +930,8 @@ fat32_findnextfreecluster:
 
   ; Find a free cluster and store it's location in fat32_lastfoundfreecluster
 
-  lda #0
+  ; Cluster ids 0 and 1 are reserved on FAT32. Start searching at 2.
+  lda #2
   sta fat32_nextcluster
   sta fat32_lastfoundfreecluster
   lda #0
@@ -875,9 +964,11 @@ _searchclusters:
   bne _copycluster
   inc fat32_lastfoundfreecluster+3
 
-  lda fat32_lastfoundfreecluster
-  cmp #$10
-  bcs _sd_full
+  ; FAT32 cluster numbers are 28-bit. If the high nibble overflows,
+  ; we've exhausted the searchable range.
+  lda fat32_lastfoundfreecluster+3
+  and #$f0
+  bne _sd_full
 
 _copycluster:
 
@@ -973,8 +1064,10 @@ _fseek:
   clc
   jsr fat32_seekcluster
 
-  ; Set the pointer to a large value so we always read a sector the first time through
-  lda #$ff
+  ; Force the first file sector read to cross the buffer boundary cleanly.
+  lda #<(fat32_readbuffer+$1e0)
+  sta zp_sd_address
+  lda #>(fat32_readbuffer+$1e0)
   sta zp_sd_address+1
 
   rts
@@ -1178,6 +1271,7 @@ fat32_readdirent:
   ; zp_sd_address points at the returned directory entry.
   ; LFNs and empty entries are ignored automatically.
 
+_scan_next_entry:
   ; Increment pointer by 32 to point to next entry
   clc
   lda zp_sd_address
@@ -1211,16 +1305,20 @@ _gotdirdata:
   ; End of directory => abort
   beq _endofdirectory
 
-  ; Empty entry => start again
+  ; Empty entry => keep scanning
   cmp #$e5
-  beq fat32_readdirent
+  bne :+
+  jmp _scan_next_entry
+:
 
   ; Check attributes
   ldy #11
   lda (zp_sd_address),y
   and #$3f
-  cmp #$0f ; LFN => start again
-  beq fat32_readdirent
+  cmp #$0f ; LFN => keep scanning
+  bne :+
+  jmp _scan_next_entry
+:
 
   ; Yield this result
   clc

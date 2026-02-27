@@ -6,7 +6,7 @@ newline:
   rts
 
 print_char:
-; JSR OUTCH    1EA0     Print ASCII char  A     -       Xis preserved
+; JSR OUTCH    1EA0     Print ASCII char  A     -       X is preserved
 ;                       in A on TTY                     Y = FF
 ;                                                       A = FF
   jsr OUTCH
