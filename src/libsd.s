@@ -30,7 +30,7 @@ _cmd0: ; GO_IDLE_STATE - resets card to idle state, and SPI mode
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne _cmd0_failed
+  bne _initfailed
 
 _cmd8: ; SEND_IF_COND - tell the card how we want it to operate (3.3V, etc)
   lda #<sd_cmd8_bytes
@@ -42,7 +42,7 @@ _cmd8: ; SEND_IF_COND - tell the card how we want it to operate (3.3V, etc)
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne _cmd8_failed
+  bne _initfailed
 
   ; Read 32-bit return value, but ignore it
   jsr sd_readbyte
@@ -60,7 +60,7 @@ _cmd55: ; APP_CMD - required prefix for ACMD commands
 
   ; Expect status response $01 (not initialized)
   cmp #$01
-  bne _cmd55_failed
+  bne _initfailed
 
 _cmd41: ; APP_SEND_OP_COND - send operating conditions, initialize card
   lda #<sd_cmd41_bytes
@@ -76,7 +76,7 @@ _cmd41: ; APP_SEND_OP_COND - send operating conditions, initialize card
 
   ; Otherwise expect status response $01 (not initialized)
   cmp #$01
-  bne _cmd41_failed
+  bne _initfailed
 
   ; Not initialized yet, so wait a while then try again.
   ; This retry is important, to give the card time to initialize.
@@ -93,22 +93,8 @@ _delayloop:
 
 
 _initialized:
-  ;lda #'Y'
-  ;jsr print_char
   clc
   rts
-
-_cmd0_failed:
-  jmp _initfailed
-
-_cmd8_failed:
-  jmp _initfailed
-
-_cmd55_failed:
-  jmp _initfailed
-
-_cmd41_failed:
-  jmp _initfailed
 
 _initfailed:
   iny
@@ -240,13 +226,6 @@ _clockloop:
 
 
 sd_sendcommand:
-  ; Debug print which command is being executed
-  ; lda #'c'
-  ; jsr print_char
-  ; ldx #0
-  ; lda (zp_sd_address,x)
-  ; jsr print_hex
-
   ; Ensure at least one full idle byte with CS high before selecting the card.
   jsr sd_clockbyte_cs_high
 
@@ -274,9 +253,6 @@ sd_sendcommand:
 
   jsr sd_waitresult
   pha
-
-  ; Debug print the result code
-  ; jsr print_hex
 
   ; End command
   lda #SD_CS | SD_MOSI   ; set CS high again
