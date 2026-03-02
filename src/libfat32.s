@@ -1454,28 +1454,28 @@ fat32_file_readbyte:
   ;
   ; The byte is returned in A with C clear; or if end-of-file was reached, C is set instead
 
-  sec
-
   ; Is there any data to read at all?
   lda fat32_bytesremaining
   ora fat32_bytesremaining+1
   ora fat32_bytesremaining+2
   ora fat32_bytesremaining+3
-  beq _rts
+  beq _fat32_file_readbyte_eof
 
-  ; Decrement the remaining byte count
+  ; Decrement the remaining byte count (faster carry-chain than 4x SBC).
+  dec fat32_bytesremaining
   lda fat32_bytesremaining
-  sbc #1
-  sta fat32_bytesremaining
+  cmp #$FF
+  bne :+
+  dec fat32_bytesremaining+1
   lda fat32_bytesremaining+1
-  sbc #0
-  sta fat32_bytesremaining+1
+  cmp #$FF
+  bne :+
+  dec fat32_bytesremaining+2
   lda fat32_bytesremaining+2
-  sbc #0
-  sta fat32_bytesremaining+2
-  lda fat32_bytesremaining+3
-  sbc #0
-  sta fat32_bytesremaining+3
+  cmp #$FF
+  bne :+
+  dec fat32_bytesremaining+3
+:
 
   ; Need to read a new sector?
   lda zp_sd_address+1
@@ -1489,17 +1489,22 @@ fat32_file_readbyte:
   sta fat32_address+1
 
   jsr fat32_readnextsector
-  bcs _rts
+  bcs _fat32_file_readbyte_eof
 
 _gotdata:
   ldy #0
   lda (zp_sd_address),y
 
   inc zp_sd_address
-  bne _rts
+  bne _fat32_file_readbyte_ok
   inc zp_sd_address+1
 
-_rts:
+_fat32_file_readbyte_ok:
+  clc
+  rts
+
+_fat32_file_readbyte_eof:
+  sec
   rts
 
 

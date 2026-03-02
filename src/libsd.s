@@ -4,6 +4,9 @@
 ;   zp_sd_address - 2 bytes
 ;   zp_sd_currentsector - 4 bytes
 
+; Scratch RAM used by tight sector-read loop.
+sd_read_bits = $06F5
+
 sd_init:
   ; Let the SD card boot up, by pumping the clock with SD CS disabled
 
@@ -327,7 +330,29 @@ _readpage:
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
 _readpageloop:
-  jsr sd_readbyte
+  ; Inline sd_readbyte here to avoid per-byte JSR/RTS overhead.
+  ldx #0
+  lda #8
+  sta sd_read_bits
+_readbitloop:
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+  dec sd_read_bits
+  bne _readbitloop
+
+  txa
   sta (zp_sd_address),y
   iny
   bne _readpageloop
