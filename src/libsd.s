@@ -4,9 +4,6 @@
 ;   zp_sd_address - 2 bytes
 ;   zp_sd_currentsector - 4 bytes
 
-; Scratch RAM used by tight sector-read loop.
-sd_read_bits = $06F5
-
 sd_init:
   ; Let the SD card boot up, by pumping the clock with SD CS disabled
 
@@ -330,11 +327,11 @@ _readpage:
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
 _readpageloop:
-  ; Inline sd_readbyte here to avoid per-byte JSR/RTS overhead.
+  ; Inline and unroll sd_readbyte here to remove both per-byte JSR/RTS
+  ; overhead and per-bit loop bookkeeping.
   ldx #0
-  lda #8
-  sta sd_read_bits
-_readbitloop:
+
+  ; bit 7
   txa
   asl
   tax
@@ -349,8 +346,118 @@ _readbitloop:
   beq :+
   inx
 :
-  dec sd_read_bits
-  bne _readbitloop
+
+  ; bit 6
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 5
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 4
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 3
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 2
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 1
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+
+  ; bit 0
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  sta PORTA
+  lda #SD_MOSI | SD_SCK       ; raise SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
 
   txa
   sta (zp_sd_address),y
