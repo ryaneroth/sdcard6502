@@ -122,17 +122,14 @@ sd_cmd41_bytes:
 
 sd_readbyte:
   ; Enable the card and tick the clock 8 times with MOSI high,
-  ; capturing bits from MISO and returning them
+  ; capturing bits from MISO and returning them.
+  ; Uses sd_read_bits as accumulator via ROL (8 ROLs shifts out initial value).
+  ; Result returned in A. Y preserved.
   tya
   pha
   ldy #8
-  ldx #0
 
 _rbloop:
-  txa
-  asl
-  tax
-
   lda #SD_MOSI                ; enable card (CS low), set MOSI (resting state), SCK low
   sta PORTA
 
@@ -141,22 +138,15 @@ _rbloop:
 
   lda PORTA                   ; read next bit
   and #SD_MISO
+  cmp #1                      ; carry set if MISO high (2>=1), clear if low (0<1)
+  rol sd_read_bits             ; shift carry into accumulator MSB-first
 
-  clc                         ; default to clearing the bottom bit
-  beq _bitnotset              ; unless MISO was set
-  sec                         ; in which case get ready to set the bottom bit
-_bitnotset:
-  bcc :+
-  inx
-:
   dey
   bne _rbloop
 
-  txa
-  tax                         ; preserve result while restoring caller Y
   pla
   tay
-  txa
+  lda sd_read_bits
   rts
 
 
@@ -327,35 +317,68 @@ _read_fail:
   jmp _libsdfail
 
 _readpage:
-  ; Read 256 bytes to the address at zp_sd_address
+  ; Read 256 bytes to the address at zp_sd_address.
+  ; Bits 7-5 unrolled (3x, eliminates 3 dex/bne pairs = 15 cycles/byte).
+  ; Bits 4-1 in a short loop (4 iterations).
+  ; Bit 0 uses lda/rol-a trick to deliver result directly in A.
+  ; Total: ~21 cycles/byte saved vs fully-looped version.
   ldy #0
 _readpageloop:
-  ; Inline sd_readbyte here to avoid per-byte JSR/RTS overhead.
-  ldx #0
-  lda #8
-  sta sd_read_bits
-_readbitloop:
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
+  lda #SD_MOSI                ; bit 7
   sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
+  lda #SD_MOSI | SD_SCK
   sta PORTA
-
   lda PORTA
   and #SD_MISO
-  beq :+
-  inx
-:
-  dec sd_read_bits
+  cmp #1
+  rol sd_read_bits
+
+  lda #SD_MOSI                ; bit 6
+  sta PORTA
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  lda #SD_MOSI                ; bit 5
+  sta PORTA
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  ldx #4                      ; loop for bits 4-1
+_readbitloop:
+  lda #SD_MOSI
+  sta PORTA
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+  dex
   bne _readbitloop
 
-  txa
+  lda #SD_MOSI                ; bit 0 (LSB) - merge accumulate+load via rol a
+  sta PORTA
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  lda sd_read_bits             ; load bits 7..1 in place; carry holds bit 0
+  rol a                        ; shift carry into bit 0, completing the byte
+
   sta (zp_sd_address),y
   iny
-  bne _readpageloop
+  beq :+                       ; exit when Y wraps to 0 (256 bytes done)
+  jmp _readpageloop            ; bne can't reach _readpageloop (loop body > 128 bytes)
+:
   rts
 
 _libsdfail:
