@@ -327,137 +327,34 @@ _readpage:
   ; Read 256 bytes to the address at zp_sd_address
   ldy #0
 _readpageloop:
-  ; Inline and unroll sd_readbyte here to remove both per-byte JSR/RTS
-  ; overhead and per-bit loop bookkeeping.
+  ; Keep unrolled bit reads for speed, but define the repeated sequence
+  ; as a macro so the hot path stays maintainable.
+  .macro SD_READBIT
+    txa
+    asl
+    tax
+
+    lda #SD_MOSI                ; CS low, MOSI high, SCK low
+    sta PORTA
+    lda #SD_MOSI | SD_SCK       ; raise SCK
+    sta PORTA
+
+    lda PORTA
+    and #SD_MISO
+    beq :+
+    inx
+  :
+  .endmacro
+
   ldx #0
-
-  ; bit 7
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 6
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 5
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 4
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 3
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 2
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 1
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
-
-  ; bit 0
-  txa
-  asl
-  tax
-
-  lda #SD_MOSI                ; CS low, MOSI high, SCK low
-  sta PORTA
-  lda #SD_MOSI | SD_SCK       ; raise SCK
-  sta PORTA
-
-  lda PORTA
-  and #SD_MISO
-  beq :+
-  inx
-:
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
+  SD_READBIT
 
   txa
   sta (zp_sd_address),y
