@@ -4,6 +4,10 @@
 ;   zp_sd_address - 2 bytes
 ;   zp_sd_currentsector - 4 bytes
 
+; Scratch RAM for tight polling paths.
+sd_wait_hi = $06F5
+sd_wait_lo = $06F6
+
 sd_init:
   ; Let the SD card boot up, by pumping the clock with SD CS disabled
 
@@ -196,15 +200,38 @@ sd_waitresult:
   pha
   tya
   pha
-  ldx #$20
-  ldy #$00
+  lda #$20
+  sta sd_wait_hi
+  lda #$00
+  sta sd_wait_lo
 _waitloop:
-  jsr sd_readbyte
+  ; Inline a byte read here to avoid JSR/RTS + save/restore overhead while polling.
+  ldx #0
+  ldy #8
+_waitbitloop:
+  txa
+  asl
+  tax
+
+  lda #SD_MOSI
+  sta PORTA
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+
+  lda PORTA
+  and #SD_MISO
+  beq :+
+  inx
+:
+  dey
+  bne _waitbitloop
+
+  txa
   cmp #$ff
   bne _done
-  dey
+  dec sd_wait_lo
   bne _waitloop
-  dex
+  dec sd_wait_hi
   bne _waitloop
   lda #$ff
 _done:
