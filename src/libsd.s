@@ -160,6 +160,9 @@ _bitnotset:
 sd_writebyte:
   ; Tick the clock 8 times with descending bits on MOSI
   ; SD communication is mostly half-duplex so we ignore anything it sends back here
+  ; Preserve Y so callers can stream bytes without per-call stack shuffling.
+  tya
+  pha
 
   ldx #8                      ; send 8 bits
 
@@ -181,6 +184,8 @@ _sendbit:
   dex
   bne _wbloop                   ; loop if there are more bits to send
 
+  pla
+  tay
   rts
 
 
@@ -433,15 +438,11 @@ _waitidle:
   rts
 
 _writepage:
-  ; Write 256 bytes fom zp_sd_address
+  ; Write 256 bytes from zp_sd_address
   ldy #0
 _writeloop:
-  tya ; transfer counter to a register
-  pha ; push counter to stack
   lda (zp_sd_address),y
   jsr sd_writebyte
-  pla ; pull counter from stack
-  tay ; transfer back
   iny
   bne _writeloop
   rts
