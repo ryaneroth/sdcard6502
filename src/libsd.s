@@ -199,13 +199,13 @@ sd_waitresult:
 _waitloop:
   jsr sd_readbyte
   cmp #$ff
-  bne _done
+  bne _waitloop_done
   dey
   bne _waitloop
   dex
   bne _waitloop
   lda #$ff
-_done:
+_waitloop_done:
   tax
   pla
   tay
