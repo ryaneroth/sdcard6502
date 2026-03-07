@@ -4,10 +4,18 @@
 ;   zp_sd_address - 2 bytes
 ;   zp_sd_currentsector - 4 bytes
 
-; Scratch RAM used by tight sector-read loop.
-sd_read_bits = $06F5
+; Zero-page scratch accumulator used by SD read paths.
+sd_read_bits = $AF
+; Stream-read state for CMD18 multi-block reads.
+sd_stream_active = $05F0
+sd_stream_nextsector = $05F1 ; 4 bytes
+sd_stream_enabled = $05F5
 
 sd_init:
+  lda #0
+  sta sd_stream_active
+  lda #1
+  sta sd_stream_enabled
   ; Let the SD card boot up, by pumping the clock with SD CS disabled
 
   ; We need to apply around 80 clock pulses with CS and MOSI high.
@@ -123,26 +131,68 @@ sd_cmd41_bytes:
 sd_readbyte:
   ; Enable the card and tick the clock 8 times with MOSI high,
   ; capturing bits from MISO and returning them.
-  ; Uses sd_read_bits as accumulator via ROL (8 ROLs shifts out initial value).
+  ; Uses sd_read_bits as accumulator via ROL (8 ROLs shift out initial value).
   ; Result returned in A. Y preserved.
   tya
   pha
-  ldy #8
+  ldx #SD_MOSI
+  ldy #SD_MOSI | SD_SCK
 
-_rbloop:
-  lda #SD_MOSI                ; enable card (CS low), set MOSI (resting state), SCK low
-  sta PORTA
-
-  lda #SD_MOSI | SD_SCK       ; toggle the clock high
-  sta PORTA
-
-  lda PORTA                   ; read next bit
+  stx PORTA                   ; bit 7
+  sty PORTA
+  lda PORTA
   and #SD_MISO
-  cmp #1                      ; carry set if MISO high (2>=1), clear if low (0<1)
-  rol sd_read_bits             ; shift carry into accumulator MSB-first
+  cmp #1
+  rol sd_read_bits
 
-  dey
-  bne _rbloop
+  stx PORTA                   ; bit 6
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 5
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 4
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 3
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 2
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 1
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 0
+  sty PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
 
   pla
   tay
@@ -219,6 +269,10 @@ _clockloop:
 
 
 sd_sendcommand:
+  lda sd_stream_active
+  beq :+
+  jsr sd_abortstream
+:
   ; Ensure at least one full idle byte with CS high before selecting the card.
   jsr sd_clockbyte_cs_high
 
@@ -255,6 +309,64 @@ sd_sendcommand:
   pla   ; restore result code
   rts
 
+sd_stream_readblock:
+  ; Wait for next data token in an active multi-block read stream.
+  jsr sd_waitresult
+  cmp #$fe
+  beq :+
+  jmp _read_fail
+:
+
+  jsr _readpage
+  inc zp_sd_address+1
+  jsr _readpage
+  dec zp_sd_address+1
+
+  ; Consume trailing CRC from the card.
+  jsr sd_readbyte
+  jsr sd_readbyte
+
+  ; Advance expected next sector.
+  inc sd_stream_nextsector
+  bne :+
+  inc sd_stream_nextsector+1
+  bne :+
+  inc sd_stream_nextsector+2
+  bne :+
+  inc sd_stream_nextsector+3
+:
+  clc
+  rts
+
+sd_abortstream:
+  lda sd_stream_active
+  beq :+
+  ; While CS is low, issue CMD12 (STOP_TRANSMISSION).
+  lda #$4c
+  jsr sd_writebyte
+  lda #$00
+  jsr sd_writebyte
+  jsr sd_writebyte
+  jsr sd_writebyte
+  jsr sd_writebyte
+  lda #$01
+  jsr sd_writebyte
+  ; CMD12 has one stuff byte before its R1 response.
+  jsr sd_readbyte
+  jsr sd_waitresult
+  ; Wait until card releases DO high again.
+_abort_wait_idle:
+  jsr sd_readbyte
+  cmp #$ff
+  bne _abort_wait_idle
+  lda #SD_CS | SD_MOSI
+  sta PORTA
+  jsr sd_clockbyte_cs_high
+  lda #0
+  sta sd_stream_active
+: clc
+  rts
+
 
 sd_readsector:
   ; Read a sector from the SD card.  A sector is 512 bytes.
@@ -263,13 +375,43 @@ sd_readsector:
   ;    zp_sd_currentsector   32-bit sector number
   ;    zp_sd_address     address of buffer to receive data
 
-  ; Ensure card sees idle clocks before selecting and issuing CMD17.
+  lda sd_stream_enabled
+  bne :+
+  lda sd_stream_active
+  bne :++
+: jmp sd_readsector_single
+:
+  jsr sd_abortstream
+  jmp sd_readsector_single
+
+  ; Continue active CMD18 stream if caller is reading the next physical sector.
+  lda sd_stream_active
+  beq _startstream
+  lda zp_sd_currentsector
+  cmp sd_stream_nextsector
+  bne _restartstream
+  lda zp_sd_currentsector+1
+  cmp sd_stream_nextsector+1
+  bne _restartstream
+  lda zp_sd_currentsector+2
+  cmp sd_stream_nextsector+2
+  bne _restartstream
+  lda zp_sd_currentsector+3
+  cmp sd_stream_nextsector+3
+  bne _restartstream
+  jmp sd_stream_readblock
+
+_restartstream:
+  jsr sd_abortstream
+
+_startstream:
+  ; Ensure card sees idle clocks before selecting and issuing CMD18.
   jsr sd_clockbyte_cs_high
   lda #SD_MOSI
   sta PORTA
 
-  ; Command 17, arg is sector number, crc not checked
-  lda #$51                    ; CMD17 - READ_SINGLE_BLOCK
+  ; Command 18, arg is sector number, crc not checked
+  lda #$52                    ; CMD18 - READ_MULTIPLE_BLOCK
   jsr sd_writebyte
   lda zp_sd_currentsector+3   ; sector 24:31
   jsr sd_writebyte
@@ -286,22 +428,52 @@ sd_readsector:
   cmp #$00
   bne _read_fail
 
-  ; wait for data token
+  lda zp_sd_currentsector
+  sta sd_stream_nextsector
+  lda zp_sd_currentsector+1
+  sta sd_stream_nextsector+1
+  lda zp_sd_currentsector+2
+  sta sd_stream_nextsector+2
+  lda zp_sd_currentsector+3
+  sta sd_stream_nextsector+3
+  lda #1
+  sta sd_stream_active
+  jmp sd_stream_readblock
+
+sd_readsector_single:
+  ; Legacy single-block sector read path (CMD17).
+  jsr sd_clockbyte_cs_high
+  lda #SD_MOSI
+  sta PORTA
+
+  lda #$51                    ; CMD17 - READ_SINGLE_BLOCK
+  jsr sd_writebyte
+  lda zp_sd_currentsector+3
+  jsr sd_writebyte
+  lda zp_sd_currentsector+2
+  jsr sd_writebyte
+  lda zp_sd_currentsector+1
+  jsr sd_writebyte
+  lda zp_sd_currentsector
+  jsr sd_writebyte
+  lda #$01
+  jsr sd_writebyte
+
+  jsr sd_waitresult
+  cmp #$00
+  bne _read_fail
   jsr sd_waitresult
   cmp #$fe
   bne _read_fail
 
-  ; Need to read 512 bytes - two pages of 256 bytes each
   jsr _readpage
   inc zp_sd_address+1
   jsr _readpage
   dec zp_sd_address+1
 
-  ; Consume trailing 16-bit CRC from the card to keep SPI stream aligned.
   jsr sd_readbyte
   jsr sd_readbyte
 
-  ; End command
   lda #SD_CS | SD_MOSI
   sta PORTA
   jsr sd_clockbyte_cs_high
@@ -314,18 +486,18 @@ _read_fail:
   lda #SD_CS | SD_MOSI
   sta PORTA
   jsr sd_clockbyte_cs_high
+  lda #0
+  sta sd_stream_active
   jmp _libsdfail
 
 _readpage:
   ; Read 256 bytes to the address at zp_sd_address.
-  ; Bits 7-5 unrolled (3x, eliminates 3 dex/bne pairs = 15 cycles/byte).
-  ; Bits 4-1 in a short loop (4 iterations).
-  ; Bit 0 uses lda/rol-a trick to deliver result directly in A.
-  ; Total: ~21 cycles/byte saved vs fully-looped version.
+  ; Fully unrolled bit read path keeps MOSI-low in X and avoids loop overhead.
+  ; Bit 0 uses lda/rol-a to deliver the byte directly in A.
+  ldx #SD_MOSI
   ldy #0
 _readpageloop:
-  lda #SD_MOSI                ; bit 7
-  sta PORTA
+  stx PORTA                   ; bit 7
   lda #SD_MOSI | SD_SCK
   sta PORTA
   lda PORTA
@@ -333,8 +505,7 @@ _readpageloop:
   cmp #1
   rol sd_read_bits
 
-  lda #SD_MOSI                ; bit 6
-  sta PORTA
+  stx PORTA                   ; bit 6
   lda #SD_MOSI | SD_SCK
   sta PORTA
   lda PORTA
@@ -342,8 +513,7 @@ _readpageloop:
   cmp #1
   rol sd_read_bits
 
-  lda #SD_MOSI                ; bit 5
-  sta PORTA
+  stx PORTA                   ; bit 5
   lda #SD_MOSI | SD_SCK
   sta PORTA
   lda PORTA
@@ -351,21 +521,39 @@ _readpageloop:
   cmp #1
   rol sd_read_bits
 
-  ldx #4                      ; loop for bits 4-1
-_readbitloop:
-  lda #SD_MOSI
-  sta PORTA
+  stx PORTA                   ; bit 4
   lda #SD_MOSI | SD_SCK
   sta PORTA
   lda PORTA
   and #SD_MISO
   cmp #1
   rol sd_read_bits
-  dex
-  bne _readbitloop
 
-  lda #SD_MOSI                ; bit 0 (LSB) - merge accumulate+load via rol a
+  stx PORTA                   ; bit 3
+  lda #SD_MOSI | SD_SCK
   sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 2
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 1
+  lda #SD_MOSI | SD_SCK
+  sta PORTA
+  lda PORTA
+  and #SD_MISO
+  cmp #1
+  rol sd_read_bits
+
+  stx PORTA                   ; bit 0 (LSB) - merge accumulate+load via rol a
   lda #SD_MOSI | SD_SCK
   sta PORTA
   lda PORTA
@@ -392,6 +580,11 @@ sd_writesector:
   ; Parameters:
   ;    zp_sd_currentsector   32-bit sector number
   ;    zp_sd_address     address of buffer to take data from
+
+  lda sd_stream_active
+  beq :+
+  jsr sd_abortstream
+:
 
   ; Ensure card sees idle clocks before selecting and issuing CMD24.
   jsr sd_clockbyte_cs_high

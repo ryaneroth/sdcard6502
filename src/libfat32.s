@@ -6,6 +6,8 @@
 ; zp_fat32_variables - 52 bytes of zero-page storage for variables etc
 
 fat32_readbuffer = fat32_workspace
+; Scratch RAM for contiguous-cluster run expansion during sequential reads.
+fat32_runcluster                = $05F6 ; 4 bytes
 
 fat32_fatstart                  = zp_fat32_variables + $00  ; 4 bytes
 fat32_datastart                 = zp_fat32_variables + $04  ; 4 bytes
@@ -388,6 +390,17 @@ _spcshiftloopdone:
   lda fat32_sectorspercluster
   sta fat32_pendingsectors
 
+  ; Preserve the current cluster so we can fold contiguous clusters into a
+  ; single sequential run while this FAT sector is still in memory.
+  lda fat32_nextcluster
+  sta fat32_runcluster
+  lda fat32_nextcluster+1
+  sta fat32_runcluster+1
+  lda fat32_nextcluster+2
+  sta fat32_runcluster+2
+  lda fat32_nextcluster+3
+  sta fat32_runcluster+3
+
   ; Now go back to looking up the next cluster in the chain
   ; Find the offset to this cluster's entry in the FAT sector we loaded earlier
 
@@ -445,6 +458,112 @@ _spcshiftloopdone:
   sec
   rts
 _notendofchain:
+_runexpand:
+  ; Stop if the next FAT entry would come from a different FAT sector.
+  lda fat32_runcluster
+  and #$7f
+  cmp #$7f
+  bne :+
+  jmp _runexpanddone
+:
+
+  ; Stop if the next cluster in the chain is not exactly current+1.
+  clc
+  lda fat32_runcluster
+  adc #1
+  cmp fat32_nextcluster
+  beq :+
+  jmp _runexpanddone
+:
+  lda fat32_runcluster+1
+  adc #0
+  cmp fat32_nextcluster+1
+  beq :+
+  jmp _runexpanddone
+:
+  lda fat32_runcluster+2
+  adc #0
+  cmp fat32_nextcluster+2
+  beq :+
+  jmp _runexpanddone
+:
+  lda fat32_runcluster+3
+  adc #0
+  cmp fat32_nextcluster+3
+  beq :+
+  jmp _runexpanddone
+:
+
+  ; Stop before pending-sectors overflows its single-byte counter.
+  lda fat32_pendingsectors
+  clc
+  adc fat32_sectorspercluster
+  bcc :+
+  jmp _runexpanddone
+:
+  sta fat32_pendingsectors
+
+  ; Advance current cluster to the newly absorbed contiguous cluster.
+  lda fat32_nextcluster
+  sta fat32_runcluster
+  lda fat32_nextcluster+1
+  sta fat32_runcluster+1
+  lda fat32_nextcluster+2
+  sta fat32_runcluster+2
+  lda fat32_nextcluster+3
+  sta fat32_runcluster+3
+
+  ; Advance to the next FAT entry inside the currently loaded FAT sector.
+  tya
+  clc
+  adc #4
+  tay
+  bcc :+
+  inc zp_sd_address+1
+:
+
+  ; Load the next cluster after the expanded run.
+  lda (zp_sd_address),y
+  sta fat32_nextcluster
+  iny
+  lda (zp_sd_address),y
+  sta fat32_nextcluster+1
+  iny
+  lda (zp_sd_address),y
+  sta fat32_nextcluster+2
+  iny
+  lda (zp_sd_address),y
+  and #$0f
+  sta fat32_nextcluster+3
+  dey
+  dey
+  dey
+
+  ; If the expanded run reaches EOC, keep the canonical end marker and stop.
+  lda fat32_nextcluster+3
+  cmp #$0F
+  bcs :+
+  jmp _runexpand
+:
+  lda fat32_nextcluster+2
+  cmp #$FF
+  beq :+
+  jmp _runexpand
+:
+  lda fat32_nextcluster+1
+  cmp #$FF
+  beq :+
+  jmp _runexpand
+:
+  lda fat32_nextcluster
+  cmp #$F8
+  bcs :+
+  jmp _runexpand
+:
+
+  lda #$FF
+  sta fat32_nextcluster+3
+_runexpanddone:
   clc
   rts
 
