@@ -376,13 +376,7 @@ sd_readsector:
   ;    zp_sd_address     address of buffer to receive data
 
   lda sd_stream_enabled
-  bne :+
-  lda sd_stream_active
-  bne :++
-: jmp sd_readsector_single
-:
-  jsr sd_abortstream
-  jmp sd_readsector_single
+  beq sd_readsector_single      ; streaming disabled: use single-block CMD17
 
   ; Continue active CMD18 stream if caller is reading the next physical sector.
   lda sd_stream_active
