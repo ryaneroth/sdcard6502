@@ -916,51 +916,15 @@ _one:
 
   ; Find free clusters and allocate them for use for this file.
 _allocateloop:
-  ; Check if it's the last cluster in the chain
+  ; We already allocated the first cluster before entering this loop.
+  ; If the total cluster count is 0/1, this cluster is the end of chain.
   lda fat32_bytesremaining
-  beq _lastcluster
-  cmp #1                ; CHECK! is 1 the right amount for this?
-  bcc _notlastcluster   ; clustersremaining <=1?
+  cmp #2
+  bcc _lastcluster
 
-  ; It is the last one.
-
-_lastcluster:
-
-; go back the previous one
-  lda fat32_lastcluster
-  sta fat32_nextcluster
-  lda fat32_lastcluster+1
-  sta fat32_nextcluster+1
-  lda fat32_lastcluster+2
-  sta fat32_nextcluster+2
-  lda fat32_lastcluster+3
-  sta fat32_nextcluster+3
-
-  sec
-  jsr fat32_seekcluster
-
-  ; Write 0x0FFFFFFE (EOC)
-  lda #$0f
-  sta (zp_sd_address),y
-  dey
-  lda #$ff
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-  dey
-  lda #$fe
-  sta (zp_sd_address),y
-
-  ; Update the FAT
-  jsr fat32_updatefat
-
-  ; End of chain - exit
-  jmp _lastclusterdone
+  ; More than one cluster total is required, so allocate/link another one.
 
 _notlastcluster:
-  ; Wait! Is there exactly 1 cluster left?
-  beq _lastcluster
-
   ; Find the next cluster
   jsr fat32_findnextfreecluster
   bcc :+
@@ -986,21 +950,22 @@ _notlastcluster:
 
   tya
   pha
-  ; Enter the address of the next one into the FAT
-  lda fat32_lastfoundfreecluster+3
-  sta fat32_lastcluster+3
+  ; Enter the address of the next one into the FAT in little-endian order.
+  lda fat32_lastfoundfreecluster
+  sta fat32_lastcluster
   sta (zp_sd_address),y
-  dey
-  lda fat32_lastfoundfreecluster+2
-  sta fat32_lastcluster+2
-  sta (zp_sd_address),y
-  dey
+  iny
   lda fat32_lastfoundfreecluster+1
   sta fat32_lastcluster+1
   sta (zp_sd_address),y
-  dey
-  lda fat32_lastfoundfreecluster
-  sta fat32_lastcluster
+  iny
+  lda fat32_lastfoundfreecluster+2
+  sta fat32_lastcluster+2
+  sta (zp_sd_address),y
+  iny
+  lda fat32_lastfoundfreecluster+3
+  and #$0f
+  sta fat32_lastcluster+3
   sta (zp_sd_address),y
   pla
   tay
@@ -1015,6 +980,38 @@ _notlastcluster:
   bne _allocateloop
 
   ; Done!
+
+_lastcluster:
+
+; go back the previous one
+  lda fat32_lastcluster
+  sta fat32_nextcluster
+  lda fat32_lastcluster+1
+  sta fat32_nextcluster+1
+  lda fat32_lastcluster+2
+  sta fat32_nextcluster+2
+  lda fat32_lastcluster+3
+  sta fat32_nextcluster+3
+
+  sec
+  jsr fat32_seekcluster
+
+  ; Write 0x0FFFFFFE (EOC) in little-endian FAT order.
+  lda #$fe
+  sta (zp_sd_address),y
+  iny
+  lda #$ff
+  sta (zp_sd_address),y
+  iny
+  sta (zp_sd_address),y
+  iny
+  lda #$0f
+  sta (zp_sd_address),y
+
+  ; Update the FAT
+  jsr fat32_updatefat
+
+  ; End of chain - exit
 _lastclusterdone:
   ; Pull the filesize back from the stack
   pla

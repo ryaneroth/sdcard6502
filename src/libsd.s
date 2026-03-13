@@ -7,9 +7,9 @@
 ; Zero-page scratch accumulator used by SD read paths.
 sd_read_bits = $AF
 ; Stream-read state for CMD18 multi-block reads.
-sd_stream_active = $05F0
-sd_stream_nextsector = $05F1 ; 4 bytes
-sd_stream_enabled = $05F5
+sd_stream_active = $04F0
+sd_stream_nextsector = $04F1 ; 4 bytes
+sd_stream_enabled = $04F5
 
 sd_init:
   lda #0
