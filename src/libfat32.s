@@ -1245,6 +1245,9 @@ _gotdirrent:
   ; A deleted entry: reuse it, so deleting and re-creating files (as
   ; level and save files are) does not grow the directory without limit.
 _dnewentry:
+  ; Remember which kind of slot this is: 0 = the end of the directory,
+  ; $E5 = a reused deleted entry.
+  pha
   ; Now make a new entry.
 _dloop:
   lda (fat32_filenamepointer),y  ; copy filename
@@ -1316,6 +1319,11 @@ _empty:
   iny
   sta (zp_sd_address),y
   iny
+  ; A reused deleted entry sits between other entries, so leave the
+  ; following entries alone. Only an entry appended at the end of the
+  ; directory needs a new end-of-directory marker after it.
+  pla
+  bne _dreused
   ; are we over the buffer?
   lda zp_sd_address+1
   cmp #>(fat32_readbuffer+$200)
@@ -1332,6 +1340,7 @@ _notoverbuffer:
   ; next entry is 0 (end of dir)
   lda #0
   sta (zp_sd_address),y
+_dreused:
   ; Write the dirent.
   jsr fat32_writecurrentsector
 
