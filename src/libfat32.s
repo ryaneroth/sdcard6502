@@ -1550,46 +1550,88 @@ fat32_deletefile:
   ; Now we need to iterate through this file's cluster chain, and remove it from the FAT.
   ldy #0
 _chainloop:
-  ; Seek to cluster
+  ; Free the clusters one at a time.  fat32_seekcluster is used only to
+  ; load the right FAT sector: it leaves Y at the low byte of an entry,
+  ; and it may follow a run of contiguous clusters past the one we are
+  ; freeing, so this cluster's own entry is located again here.
+
+  ; Cluster 0 or 1 means an empty file, or the end of a damaged chain.
+  lda fat32_nextcluster+3
+  ora fat32_nextcluster+2
+  ora fat32_nextcluster+1
+  bne _delvalid
+  lda fat32_nextcluster
+  cmp #2
+  bcc _deletedone
+_delvalid:
+  ; Remember the cluster being freed
+  lda fat32_nextcluster
+  sta fat32_lastcluster
+  lda fat32_nextcluster+1
+  sta fat32_lastcluster+1
+  lda fat32_nextcluster+2
+  sta fat32_lastcluster+2
+  lda fat32_nextcluster+3
+  sta fat32_lastcluster+3
+
+  ; Load its FAT sector
   sec
   jsr fat32_seekcluster
 
-  ; Is this the end of the chain?
+  ; Point at its entry: offset (cluster & $7F) * 4 in the sector
+  lda #<fat32_readbuffer
+  sta zp_sd_address
+  lda #>fat32_readbuffer
+  sta zp_sd_address+1
+  lda fat32_lastcluster
+  and #$7f
+  asl
+  asl
+  tay
+  bcc :+
+  inc zp_sd_address+1
+:
+
+  ; Take the link to the next cluster, and zero the entry (low byte first)
+  lda (zp_sd_address),y
+  sta fat32_nextcluster
+  lda #0
+  sta (zp_sd_address),y
+  iny
+  lda (zp_sd_address),y
+  sta fat32_nextcluster+1
+  lda #0
+  sta (zp_sd_address),y
+  iny
+  lda (zp_sd_address),y
+  sta fat32_nextcluster+2
+  lda #0
+  sta (zp_sd_address),y
+  iny
+  lda (zp_sd_address),y
+  and #$0f
+  sta fat32_nextcluster+3
+  lda #0
+  sta (zp_sd_address),y
+
+  ; Write the FAT
+  jsr fat32_updatefat
+
+  ; Carry on unless that was the end of the chain ($0FFFFFF8 and up)
   lda fat32_nextcluster+3
-  bmi _deletefileendofchain
+  cmp #$0F
+  bcc _chainloop
+  lda fat32_nextcluster+2
+  cmp #$FF
+  bne _chainloop
+  lda fat32_nextcluster+1
+  cmp #$FF
+  bne _chainloop
+  lda fat32_nextcluster
+  cmp #$F8
+  bcc _chainloop
 
-  ; Zero it out
-  lda #0
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-
-  ; Write the FAT
-  jsr fat32_updatefat
-
-  ; And go again for another pass.
-  jmp _chainloop
-
-_deletefileendofchain:
-  ; This is the last cluster in the chain.
-
-  ; Just zero it out,
-  lda #0
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-  dey
-  sta (zp_sd_address),y
-
-  ; Write the FAT
-  jsr fat32_updatefat
-
+_deletedone:
   ; And we're done!
   clc
   rts
