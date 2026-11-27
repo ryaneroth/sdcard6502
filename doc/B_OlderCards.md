@@ -3,10 +3,13 @@
 
 # Supporting Older Cards
 
-I've only bothered to support SDHC cards or newer, as the API changed a bit for
-SDHC and anything older feels obsolete these days anyway.
+The tutorial steps only support SDHC cards or newer, as the API changed a bit
+for SDHC.  The library (`src/libsd.s`) handles older cards too, along the lines
+below: version 1 cards (CMD8 is an illegal command), and standard-capacity
+cards (CCS clear in the OCR from CMD58), which are byte addressed and set to
+512-byte blocks with CMD16.
 
-If, however, you do need to support older cards, here are some pointers:
+The pointers:
 
 * CMD8 might fail, but you can ignore it; it's required for SDHC but may not
 have been required before

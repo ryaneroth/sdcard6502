@@ -1,273 +1,318 @@
 ;----------------------------------------------
-; Copy data from SD card to memory location
+; Load a file from the SD card into memory.
+;
+;   L   load a file: type its path (for example GAME.BIN or GAMES/ADV.BIN)
+;       and Return, then the address to load it at as four hex digits
+;   D   list a directory: type its path ("" for the root) and Return
+;   H   help
+;   E   exit to the monitor
 ;----------------------------------------------
-copy_size = $27              ; 2 bytes
-copy_destination = $29       ; 2 bytes
-input_pointer = $2B          ; 11 bytes
-print_pointer = $38          ; 2 bytes
-zp_sd_address = $40          ; 2 bytes
-zp_sd_currentsector = $42    ; 4 bytes
-zp_fat32_variables = $46     ; 49 bytes
-copy_swap = $78              ; 4 bytes
-dirent_pointer = $100        ; 2 bytes
-dirent_end_counter = $102    ; 2 bytes
-fat32_workspace = $200       ; 2 pages
-buffer = $400
 
-.org $a000
+fat32_workspace = $0200         ; the sector cache: page aligned, 512 bytes
 
+.segment "CODE"
 reset:
   ldx #$ff
   txs
-;----------------------------------------------
-; SD card and FAT32 initilization
-;----------------------------------------------
-  jsr via_init
+  lda #PORTA_OUTPUTPINS         ; the SD card is on port A
+  sta DDRA
   jsr sd_init
+  bcs initfail
   jsr fat32_init
-  bcc initsuccess
-  ; Error during FAT32 initialization
-  lda #'Z'
-  jsr print_char
-  lda fat32_errorstage
-  jsr print_hex
-  jsr EXIT
-initsuccess:
-  ; Open root directory
-  jsr fat32_openroot
-;----------------------------------------------
-; Input prompt
-;----------------------------------------------
-print_help:
-  jsr newline
-  ldx #<help_menu
-  ldy #>help_menu
-  stx print_pointer
-  sty print_pointer+1
+  bcc help
+initfail:
+  jsr show_error
+  jmp EXIT
+
+help:
+  lda #<help_menu
+  ldx #>help_menu
   jsr print_string
-print_prompt:
+prompt:
   jsr newline
   lda #'>'
   jsr print_char
   lda #' '
   jsr print_char
-read_prompt_input:
   jsr get_input
+  and #$df                      ; upper case
   cmp #'L'
   beq load_file
-  cmp #'H'
-  beq print_help
+  cmp #'D'
+  bne :+
+  jmp list_dir
+: cmp #'H'
+  beq help
   cmp #'E'
-  bne print_prompt
-  jsr EXIT
+  bne prompt
+  jmp EXIT
+
 ;----------------------------------------------
-; File reading
+; L: load a file
 ;----------------------------------------------
 load_file:
   jsr newline
-  ldx #<input_filename
-  ldy #>input_filename
-  stx print_pointer
-  sty print_pointer+1
+  lda #<input_filename
+  ldx #>input_filename
   jsr print_string
-  jsr read_input
-  ; Find file by name
-  ldx #<input_pointer
-  ldy #>input_pointer
-  jsr fat32_finddirent
-  bcc foundfile
-  ; File not found
+  jsr read_line
+  lda #<line                    ; open it
+  sta fat32_ptr1
+  lda #>line
+  sta fat32_ptr1+1
+  lda #<file
+  ldx #>file
+  ldy #FAT32_READ
+  jsr fat32_open
+  bcc found
+  jsr show_error
+  jmp prompt
+found:
   jsr newline
-  ldx #<file_not_found
-  ldy #>file_not_found
-  stx print_pointer
-  sty print_pointer+1
-  jsr print_string
-  ; Open root directory
-  jsr fat32_openroot
-  jmp print_prompt
-foundfile:
-  jsr newline
-  ; Get destination address
-  ldx #<memory_destination
-  ldy #>memory_destination
-  stx print_pointer
-  sty print_pointer+1
+  lda #<memory_destination
+  ldx #>memory_destination
   jsr print_string
   jsr read_address
+  bcs prompt
   jsr newline
-  ; Open file
-  jsr fat32_opendirent
-  ; Store file size
-  lda fat32_bytesremaining 
-  sta copy_size
-  lda fat32_bytesremaining+1
-  sta copy_size+1
-  ; Read file contents into buffer
-  lda #<buffer
-  sta fat32_address
-  lda #>buffer
-  sta fat32_address+1
-  ldx #<reading
-  ldy #>reading
-  stx print_pointer
-  sty print_pointer+1
+  lda #<reading
+  ldx #>reading
   jsr print_string
-  ; Can hang on the file read sometimes
-  jsr fat32_file_read
-  ldx #<copying
-  ldy #>copying
-  stx print_pointer
-  sty print_pointer+1
+  ; Read the whole file straight to the destination: as many bytes as
+  ; it has, up to 64 KB.
+  lda address
+  sta fat32_ptr1
+  lda address+1
+  sta fat32_ptr1+1
+  lda #$ff
+  sta fat32_len
+  sta fat32_len+1
+  lda #<file
+  ldx #>file
+  jsr fat32_read
+  bcc loaded
+  jsr show_error
+  jmp prompt
+loaded:
+  jsr newline
+  lda fat32_len+1               ; how much
+  jsr print_hex
+  lda fat32_len
+  jsr print_hex
+  lda #<bytes_loaded
+  ldx #>bytes_loaded
   jsr print_string
-  ; Start copy
-  jsr start_copy
-  ; Return to prompt
-  jsr print_prompt
+  jmp prompt
+
 ;----------------------------------------------
-; Read in filename
+; D: list a directory
 ;----------------------------------------------
-read_input:
+list_dir:
+  jsr newline
+  lda #<input_dirname
+  ldx #>input_dirname
+  jsr print_string
+  jsr read_line
+  lda #<line
+  sta fat32_ptr1
+  lda #>line
+  sta fat32_ptr1+1
+  lda #<file
+  ldx #>file
+  jsr fat32_opendir
+  bcs listfail
+listnext:
+  lda #<entry
+  sta fat32_ptr1
+  lda #>entry
+  sta fat32_ptr1+1
+  lda #<file
+  ldx #>file
+  jsr fat32_readdir
+  bcc listshow
+  cmp #0                        ; C=1, A=0: the end
+  beq listdone
+listfail:
+  jsr show_error
+listdone:
+  jmp prompt
+listshow:
+  jsr newline
+  ldx #0                        ; the name
+lname:
+  lda entry,x
+  cmp #' '
+  beq lext
+  jsr putc_x
+  inx
+  cpx #8
+  bne lname
+lext:
+  lda entry+8
+  cmp #' '
+  beq lkind
+  lda #'.'
+  jsr putc_x
+  ldx #8
+lextloop:
+  lda entry,x
+  cmp #' '
+  beq lkind
+  jsr putc_x
+  inx
+  cpx #11
+  bne lextloop
+lkind:
+  lda entry+11
+  and #$10
+  beq lsize
+  lda #'/'
+  jsr print_char
+  jmp listnext
+lsize:
+  lda #' '
+  jsr print_char
+  lda entry+31
+  jsr print_hex
+  lda entry+30
+  jsr print_hex
+  lda entry+29
+  jsr print_hex
+  lda entry+28
+  jsr print_hex
+  jmp listnext
+
+;----------------------------------------------
+; Input
+;----------------------------------------------
+read_line:
+  ; a line of up to 63 characters into "line", ended by Return
   ldx #0
-read_prefix_next:
+rl:
+  stx savex
   jsr get_input
-  cmp #'.'
-  beq period
-  cpx #8
-  beq max_prefix_character
-  sta input_pointer, x
+  ldx savex
+  cmp #$0d
+  beq rldone
+  cmp #$08                      ; backspace
+  bne :+
+  cpx #0
+  beq rl
+  dex
+  jmp rl
+: cpx #63
+  bcs rl
+  sta line,x
   inx
-  jmp read_prefix_next
-period:
-  lda #' '
-  sta input_pointer, x
-  inx
-  cpx #8
-  beq max_prefix_character
-  jmp period
-read_suffix_next:
-  inx
-max_prefix_character:
-  jsr get_input
-  cpx #11
-  beq max_suffix_character
-  cmp #$0D                   ; Enter key
-  beq pad_suffix
-  sta input_pointer, x
-  jmp read_suffix_next
-pad_suffix:
-  lda #' '
-  sta input_pointer, x
-  cpx #11
-  beq max_suffix_character
-  inx
-  jmp pad_suffix
-max_suffix_character:
+  jmp rl
+rldone:
+  lda #0
+  sta line,x
   rts
-;----------------------------------------------
-; Read in address to copy data to
-;----------------------------------------------
+
 read_address:
-  ldx #0
-read_address_next:
-  jsr get_input              ; read first digit of hex address,
-  cpx #2
-  beq read_address_done
-  and #$0F                   ; '0'-'9' -> 0-9
-  asl                        ; multiply by 2
-  sta copy_destination, x    ; temp store in temp
-  asl                        ; again multiply by 2 (*4)
-  asl                        ; again multiply by 2 (*8)
+  ; four hex digits into "address"; C=1 if one was not a hex digit
+  jsr read_hex_byte
+  bcs radone
+  sta address+1
+  jsr read_hex_byte
+  bcs radone
+  sta address
+radone:
+  rts
+
+read_hex_byte:
+  jsr read_hex_digit
+  bcs rhdone
+  asl
+  asl
+  asl
+  asl
+  sta digit
+  jsr read_hex_digit
+  bcs rhdone
+  ora digit
+rhdone:
+  rts
+
+read_hex_digit:
+  jsr get_input
+  cmp #'0'
+  bcc bad
+  cmp #'9'+1
+  bcc decdigit
+  and #$df                      ; upper case
+  cmp #'A'
+  bcc bad
+  cmp #'F'+1
+  bcs bad
+  sbc #'A'-10-1                 ; (C=0 here)
   clc
-  adc copy_destination, x    ; as result, a = x*8 + x*2
-  sta copy_destination, x
-  jsr get_input              ; read second digit of hex address
-  and #$0F                   ; '0'-'9' -> 0-9
-  adc copy_destination, x
-  jsr hex_to_dec
-  sta copy_destination, x
-  inx
-  jmp read_address_next
-read_address_done:
   rts
+decdigit:
+  sbc #'0'-1                    ; (C=0 here)
+  clc
+  rts
+bad:
+  sec
+  rts
+
 ;----------------------------------------------
-; Print string whos address is in print_pointer
+; Output
 ;----------------------------------------------
+show_error:
+  ; "Error NN" for driver error A (see libfat32.s)
+  pha
+  jsr newline
+  lda #<error
+  ldx #>error
+  jsr print_string
+  pla
+  jmp print_hex
+
 print_string:
-  ldx #0
-print_string_loop:
-  txa
-  tay
-  lda (print_pointer), y     ; get from string
-  beq print_string_exit      ; end of string
-  jsr OUTCH                  ; write to output
-  inx
-  bne print_string_loop      ; do next char
-print_string_exit:
-  rts
-;----------------------------------------------
-; Hex to decimal converter
-;----------------------------------------------
-hex_to_dec:
-  sed                        ; switch to decimal mode
-  tay                        ; transfer accumulator to y register
-  lda #00                    ; reset accumulator
-hex_loop:
-  dey                        ; decrement x by 1
-  cpy #00                    ; if y < 0,
-  bmi hex_break              ; then break;
-  clc                        ; else clear carry
-  adc #01                    ; to increment accumulator by 1
-  jmp hex_loop               ; branch always
-hex_break:
-  cld
-  rts                        ; return from subroutine
-;----------------------------------------------
-; Relocate code
-;----------------------------------------------
-start_copy:
-  lda #<buffer               ; set our source memory address to copy from
-  sta copy_swap
-  lda #>buffer
-  sta copy_swap+1
-  lda copy_destination+1     ; set our destination memory to copy to
-  sta copy_swap+2
-  lda copy_destination
-  sta copy_swap+3
-  ldx #$00                   ; reset x for our loop
-  ldy #$00                   ; reset y for our loop
-copy_loop:
-  lda (copy_swap),y          ; indirect index source memory address
-  sta (copy_swap+2),y        ; indirect index dest memory address
+  ; the 0-terminated string at A/X
+  sta string
+  stx string+1
+  ldy #0
+ps:
+  lda (string),y
+  beq psdone
+  sty savey
+  jsr OUTCH
+  ldy savey
   iny
-  bne copy_loop              ; loop until our dest goes over 255
-  inc copy_swap+1            ; increment high order source memory address
-  inc copy_swap+3            ; increment high order dest memory address
-  cpx copy_size+1            ; compare with the last address we want to write
-  beq stop_copy
-  inx
-  jmp copy_loop              ; if we're not there yet, loop
-stop_copy:
+  bne ps
+psdone:
   rts
+
+putc_x:
+  stx savex
+  jsr print_char
+  ldx savex
+  rts
+
 ;----------------------------------------------
 ; Strings
 ;----------------------------------------------
 help_menu:
-  .byte "L    Load file"
-  .byte $0D, $0A
-  .byte "E    Exit"
-  .byte $0D, $0A
-  .asciiz "H    Print help"
+  .byte $0d, $0a, "L    Load file"
+  .byte $0d, $0a, "D    List directory"
+  .byte $0d, $0a, "E    Exit"
+  .byte $0d, $0a, "H    Print help", 0
 input_filename:
-  .asciiz "Input filename > "
-file_not_found:
-  .asciiz "File not found"
+  .asciiz "File > "
+input_dirname:
+  .asciiz "Directory > "
 memory_destination:
-  .asciiz "Memory destination > "
+  .asciiz "Address (hex) > "
 reading:
-  .asciiz "Reading data from SD card"
-copying:
-  .asciiz "Copying data to destination"
+  .asciiz "Reading"
+bytes_loaded:
+  .asciiz " bytes loaded"
+error:
+  .asciiz "Error "
+
 ;----------------------------------------------
 ; Includes
 ;----------------------------------------------
@@ -275,3 +320,14 @@ copying:
   .include "libsd.s"
   .include "libfat32.s"
   .include "libio.s"
+
+.segment "ZEROPAGE"
+string:   .res 2
+.segment "BSS"
+file:     .res FAT32_FILESIZE
+entry:    .res 32
+line:     .res 64
+address:  .res 2
+digit:    .res 1
+savex:    .res 1
+savey:    .res 1

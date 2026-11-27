@@ -6,9 +6,9 @@ $(PROGRAM).ptp: $(PROGRAM).bin Makefile
 	srec_cat $(PROGRAM).bin -binary -offset 0xa000 -o $(PROGRAM).ptp -MOS_Technologies
 
 $(PROGRAM).bin: $(PROGRAM).o
-	ld65 -C kim1-60k.cfg -vm -m $(PROGRAM).map -o $(PROGRAM).bin $(PROGRAM).o
+	ld65 -C examples.cfg -vm -m $(PROGRAM).map -o $(PROGRAM).bin $(PROGRAM).o
 
-$(PROGRAM).o:	$(PROGRAM).s
+$(PROGRAM).o:	$(PROGRAM).s libsd.s libfat32.s hwconfig.s libio.s
 	ca65 -g -l $(PROGRAM).lst $(PROGRAM).s
 
 clean:

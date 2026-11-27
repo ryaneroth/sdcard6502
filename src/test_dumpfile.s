@@ -1,122 +1,77 @@
-zp_sd_address = $40         ; 2 bytes
-zp_sd_currentsector = $42   ; 4 bytes
-zp_fat32_variables = $46    ; 49 bytes
+; Print a text file from the SD card: 1/LOCATION.TXT (change "filename"
+; below to the path of a file on your card).
 
-fat32_workspace = $200      ; two pages
+fat32_workspace = $0200         ; the sector cache: page aligned, 512 bytes
 
-buffer = $400
-
-  .org $2000
-  jsr newline
+.segment "CODE"
 reset:
   ldx #$ff
   txs
-  ; Initialise
-  jsr via_init
+  jsr newline
+  lda #PORTA_OUTPUTPINS         ; the SD card is on port A
+  sta DDRA
   jsr sd_init
+  bcs fail
   jsr fat32_init
-  bcc _initsuccess
+  bcs fail
 
-  ; Error during FAT32 initialization
-  lda #'Z'
-  jsr print_char
-  lda fat32_errorstage
-  jsr print_hex
-  jmp loop
+  lda #<filename                ; open the file to read
+  sta fat32_ptr1
+  lda #>filename
+  sta fat32_ptr1+1
+  lda #<file
+  ldx #>file
+  ldy #FAT32_READ
+  jsr fat32_open
+  bcs fail
 
-_initsuccess:
-
-  ; Open root directory
-  jsr fat32_openroot
-
-  ; Find subdirectory by name
-  ldx #<subdirname
-  ldy #>subdirname
-  jsr fat32_finddirent
-  bcc _foundsubdir
-
-  ; Subdirectory not found
-  jsr newline
-  lda #'S'
-  jsr print_char
-  lda #'D'
-  jsr print_char
-  lda #'N'
-  jsr print_char
-  lda #'F'
-  jsr print_char
-  jmp loop
-
-_foundsubdir:
-
-  ; Open subdirectory
-  jsr fat32_opendirent
-
-  ; Find file by name
-  ldx #<filename
-  ldy #>filename
-  jsr fat32_finddirent
-  bcc _foundfile
-
-  ; File not found
-  jsr newline
-  lda #'F'
-  jsr print_char
-  lda #'N'
-  jsr print_char
-  lda #'F'
-  jsr print_char
-  jsr print_char
-  jmp loop
-
-_foundfile:
-
-  ; Open file
-  jsr fat32_opendirent
-
-  ; Read file contents into buffer
-  lda #<buffer
-  sta fat32_address
+readloop:
+  lda #<buffer                  ; read up to 64 bytes at a time
+  sta fat32_ptr1
   lda #>buffer
-  sta fat32_address+1
-
-  jsr fat32_file_read
-
-
-  ; Dump data to terminal
-
+  sta fat32_ptr1+1
+  lda #64
+  sta fat32_len
+  lda #0
+  sta fat32_len+1
+  lda #<file
+  ldx #>file
+  jsr fat32_read
+  bcs fail
+  lda fat32_len                 ; 0: the end of the file
+  beq done
   ldx #0
-_printloop:
+print:
   lda buffer,x
+  stx count
   jsr OUTCH
-
+  ldx count
   inx
+  cpx fat32_len
+  bne print
+  jmp readloop
 
-  cpx #16
-  bne _not16
-_not16:
+fail:
+  ; A is the error code (see libfat32.s)
+  pha
+  jsr newline
+  lda #'E'
+  jsr print_char
+  pla
+  jsr print_hex
+done:
+  jsr newline
+  jmp EXIT
 
-  cpx #32
-  bne _printloop
-
-
-  ; loop forever
-loop:
-  jsr EXIT
-  jmp loop
+filename:
+  .asciiz "1/LOCATION.TXT"
 
   .include "hwconfig.s"
   .include "libsd.s"
   .include "libfat32.s"
   .include "libio.s"
 
-;  .org $fffc
-  .word reset
-  .word $0000
-
-; Change these to the name of the file and folder you added to the card
-; The strings must be 11 characters long. Format is 8.3, filename.ext
-subdirname:
-  .asciiz "1          "
-filename:
-  .asciiz "LOCATIONTXT"
+.segment "BSS"
+file:   .res FAT32_FILESIZE
+buffer: .res 64
+count:  .res 1

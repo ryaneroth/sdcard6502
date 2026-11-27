@@ -1,126 +1,81 @@
-zp_sd_address = $40         ; 2 bytes
-zp_sd_currentsector = $42   ; 4 bytes
-zp_fat32_variables = $46    ; 49 bytes
+; Write a file to the SD card: SAVETEST.DAT, 256 bytes counting from 0
+; to 255 (created, or replaced if it is there).
 
-fat32_workspace = $200      ; two pages
+fat32_workspace = $0200         ; the sector cache: page aligned, 512 bytes
 
-buffer = $400
-
-  .org $a000
-  jsr newline
+.segment "CODE"
 reset:
   ldx #$ff
   txs
-  ; Initialise
-  jsr via_init
+  jsr newline
+  lda #PORTA_OUTPUTPINS         ; the SD card is on port A
+  sta DDRA
   jsr sd_init
+  bcs fail
   jsr fat32_init
-  bcc _initsuccess
- 
-  ; Error during FAT32 initialization
-  lda #'Z'
-  jsr print_char
-  lda fat32_errorstage
-  jsr print_hex
-  jmp loop
-_initsuccess:
+  bcs fail
 
-  ; Make a dummy file.
-  ; it should count from 0-255.
-  ldy #0
-_fileloop:
+  ldy #0                        ; the data
+fill:
   tya
   sta buffer,y
   iny
-  bne _fileloop
+  bne fill
 
-  ; Allocating
-  lda #'A'
-  jsr print_char
-
-  ; Set file size to one page, and push it as we will be clobbering it when we load the directory
-  lda #0
-  sta fat32_bytesremaining
-  pha
-  lda #$01
-  sta fat32_bytesremaining+1
-  pha
-
-  ; Allocate space for the file
-  jsr fat32_allocatefile
-
-  ; Opening Directory
+  lda #<filename                ; create the file
+  sta fat32_ptr1
+  lda #>filename
+  sta fat32_ptr1+1
+  lda #<file
+  ldx #>file
+  ldy #FAT32_WRITE | FAT32_CREATE | FAT32_TRUNC
+  jsr fat32_open
+  bcs fail
   lda #'O'
   jsr print_char
 
-  ; Open root directory
-  jsr fat32_openroot
-
-  ; Find subdirectory by name
-  ldx #<subdirname
-  ldy #>subdirname
-  jsr fat32_finddirent
-  bcc _foundsubdir
-
-  ; Subdirectory not found
-  lda #'X'
-  jsr print_char
-  jmp loop
-
-_foundsubdir:
-
-  ; Open subdirectory
-  jsr fat32_opendirent
-
-  ; Writing dirent
+  lda #<buffer                  ; write it
+  sta fat32_ptr1
+  lda #>buffer
+  sta fat32_ptr1+1
+  lda #0
+  sta fat32_len
+  lda #1
+  sta fat32_len+1
+  lda #<file
+  ldx #>file
+  jsr fat32_write
+  bcs fail
   lda #'W'
   jsr print_char
 
-  ; Restore filesize
-  pla 
-  sta fat32_bytesremaining+1
-  pla
-  sta fat32_bytesremaining
-
-  ; Store filename ponter
-  lda #<filename
-  sta fat32_filenamepointer
-  lda #>filename
-  sta fat32_filenamepointer+1
-
-  ; Write the directory entry
-  jsr fat32_writedirent
-
-  ; Data
-  lda #'D'
-  jsr print_char
-
-  ; Now write the file data
-  lda #<buffer
-  sta fat32_address
-  lda #>buffer
-  sta fat32_address+1
-  jsr fat32_file_write
-
-  ; Done!
+  lda #<file                    ; close it: sets its size on the card
+  ldx #>file
+  jsr fat32_close
+  bcs fail
   lda #'!'
   jsr print_char
+  jsr newline
+  jmp EXIT
 
-  ; loop forever
-loop:
-  jsr EXIT
-  jmp loop
+fail:
+  ; A is the error code (see libfat32.s)
+  pha
+  lda #'E'
+  jsr print_char
+  pla
+  jsr print_hex
+  jsr newline
+  jmp EXIT
+
+filename:
+  .asciiz "SAVETEST.DAT"
 
   .include "hwconfig.s"
   .include "libsd.s"
   .include "libfat32.s"
   .include "libio.s"
 
-;  .org $fffc
-  .word reset
-  .word $0000
-
-subdirname:
-  .asciiz "SUBFOLDR   "
-filename:
-  .asciiz "SAVETESTTXT"
+.segment "BSS"
+file:   .res FAT32_FILESIZE
+buffer: .res 256

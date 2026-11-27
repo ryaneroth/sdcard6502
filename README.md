@@ -7,13 +7,13 @@ Forked from https://github.com/gfoot/sdcard6502/ and modified to work with my PA
 This guide shows how to connect up an SD card reader to a PAL-1 6502 and use it to read/write data from SDHC cards.
 
 The tutorial ends with being able to read arbitrary sectors from the SDHC card.
-Beyond that, I've included library-style code that can read/write from a FAT32 filesystem,
-with some example programs.  For more information on this library code, see
-[FAT32 Library Documentation](doc/FAT32Library.md)
+Beyond that, the library code (`src/libsd.s`, `src/libfat32.s`) is a FAT32 file system:
+files and directories by path, several files open at once, reading, writing, appending,
+seeking, renaming, making and removing directories.  It handles SDHC/SDXC cards and
+older standard-capacity ones.  See the [FAT32 Library Documentation](doc/FAT32Library.md),
+the example programs, and the tests in `test/`.
 
-I'm only covering SDHC cards.  You pretty much can't buy older/smaller
-cards these days, and not bothering to support the older protocol simplifies
-the code quite a bit.
+The tutorial steps cover SDHC cards only, to keep them simple.
 
 # Contents
 
@@ -27,6 +27,7 @@ the code quite a bit.
 * [2  Encaplusated sd\_sendcommand](doc/2_SendCommand.md)
 * [3  Complete Initialization Sequence](doc/3_Initialization.md)
 * [4  Reading Sectors](doc/4_ReadingSectors.md)
+* [5  The FAT32 Library](doc/FAT32Library.md)
 * [6  Reading File Content](src/test_dumpfile.s)
   
   <img src="img/Hello%20World.png" title="test_dumpfile.s output">
