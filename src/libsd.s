@@ -10,6 +10,13 @@ sd_read_bits = $AF
 sd_stream_active = $04F0
 sd_stream_nextsector = $04F1 ; 4 bytes
 sd_stream_enabled = $04F5
+; Retry counters for sd_init, and the write busy-wait timeout.
+.ifndef sd_tries
+sd_tries = $04F6
+.endif
+.ifndef sd_count
+sd_count = $04F7
+.endif
 
 sd_init:
   lda #0
@@ -21,7 +28,8 @@ sd_init:
   ; We need to apply around 80 clock pulses with CS and MOSI high.
   ; Normally MOSI doesn't matter when CS is high, but the card is
   ; not yet is SPI mode, and in this non-SPI state it does care.
-  ldy #0
+  lda #2                 ; two attempts
+  sta sd_tries
 _initretry:
   lda #SD_CS | SD_MOSI
   ldx #160               ; toggle the clock 160 times, so 80 low-high transitions
@@ -61,6 +69,10 @@ _cmd8: ; SEND_IF_COND - tell the card how we want it to operate (3.3V, etc)
   jsr sd_readbyte
   jsr sd_readbyte
 
+  ; Give the card up to 16 tries (about 5 seconds) to initialise.
+  lda #16
+  sta sd_count
+
 _cmd55: ; APP_CMD - required prefix for ACMD commands
   lda #<sd_cmd55_bytes
   sta zp_sd_address
@@ -92,6 +104,8 @@ _cmd41: ; APP_SEND_OP_COND - send operating conditions, initialize card
   ; Not initialized yet, so wait a while then try again.
   ; This retry is important, to give the card time to initialize.
 
+  dec sd_count
+  beq _initfailed
   ldx #0
   ldy #0
 _delayloop:
@@ -108,8 +122,7 @@ _initialized:
   rts
 
 _initfailed:
-  iny
-  cpy #2
+  dec sd_tries
   beq :+
   jmp _initretry
 :
@@ -601,7 +614,7 @@ sd_writesector:
 
   jsr sd_waitresult
   cmp #$00
-  bne _libsdfail
+  bne _write_fail
 
   ; Send start token
   lda #$fe
@@ -623,12 +636,23 @@ sd_writesector:
   jsr sd_waitresult
   and #$1f
   cmp #$05
-  bne _libsdfail
+  bne _write_fail
 
+  ; Wait while the card is busy (it holds MISO low), for up to about
+  ; three seconds.
+  lda #$40
+  sta sd_count
+  ldy #0
 _waitidle:
   jsr sd_readbyte
   cmp #$ff
+  beq _writeidle
+  dey
   bne _waitidle
+  dec sd_count
+  bne _waitidle
+  jmp _write_fail
+_writeidle:
 
   ; End command
   lda #SD_CS | SD_MOSI ; set cs and mosi high (disconnected)
@@ -638,16 +662,32 @@ _waitidle:
   clc
   rts
 
+_write_fail:
+  ; Deselect the card and return an error.
+  lda #SD_CS | SD_MOSI
+  sta PORTA
+  jsr sd_clockbyte_cs_high
+  sec
+  rts
+
 _writepage:
-  ; Write 256 bytes fom zp_sd_address
+  ; Write 256 bytes from zp_sd_address.
+  ; Unrolled: each bit sets MOSI with SCK low, then raises SCK.
   ldy #0
 _writeloop:
-  tya ; transfer counter to a register
-  pha ; push counter to stack
   lda (zp_sd_address),y
-  jsr sd_writebyte
-  pla ; pull counter from stack
-  tay ; transfer back
+  sta sd_read_bits
+  .repeat 8
+  lda #0
+  asl sd_read_bits
+  bcc :+
+  lda #SD_MOSI
+: sta PORTA
+  ora #SD_SCK
+  sta PORTA
+  .endrepeat
   iny
-  bne _writeloop
+  beq :+
+  jmp _writeloop              ; the loop body is too long for bne
+:
   rts
