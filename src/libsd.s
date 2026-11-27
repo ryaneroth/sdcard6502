@@ -23,6 +23,7 @@ sd_read_bits:   .res 1          ; bit accumulator for reads
 .segment "BSS"
 sd_tries:       .res 1          ; sd_init attempts left
 sd_count:       .res 1          ; retry / timeout counter
+sd_wait:        .res 1          ; sd_waitresult's timeout counter
 ; What kind of card: bit 0 set for an SDHC/SDXC card (block addressed),
 ; clear for a standard-capacity card (byte addressed).  During sd_init,
 ; bit 7 is set for a version 2 card.
@@ -233,12 +234,14 @@ sendbit:
 
 .proc sd_waitresult
   ; Wait for the SD card to return something other than $ff, and return
-  ; it in A ($ff after a timeout).  X and Y preserved.
+  ; it in A ($ff after a timeout of 8192 bytes, about 1.5 s).  X and Y
+  ; preserved.  (The count is in memory: sd_readbyte uses X.)
   txa
   pha
   tya
   pha
-  ldx #$20
+  lda #$20
+  sta sd_wait
   ldy #$00
 loop:
   jsr sd_readbyte
@@ -246,7 +249,7 @@ loop:
   bne done
   dey
   bne loop
-  dex
+  dec sd_wait
   bne loop
   lda #$ff
 done:
